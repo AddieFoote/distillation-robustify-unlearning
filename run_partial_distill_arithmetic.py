@@ -1,10 +1,10 @@
 """
 Configured for a (any)xH100/H200/A100 GPU server.
 
-Launch Command: python run_serum_arithmetic_sweep_alpha.py --run_all
+Launch Command: python run_partial_distill_arithmetic.py --run_all
 """
 
-from code.tools.serum import serum
+from code.tools.partial_distill_langarith import partial_distill
 from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR
 from accelerate import Accelerator
 from utils.loss_functions import print_acc, custom_login
@@ -39,7 +39,7 @@ setups = {
         'eng_train_file'    : f"{DATASET_DIR}/pretrain/train_eng.jsonl",
         'arithmetic_train_file'    : f"{DATASET_DIR}/pretrain/train_all_arithmetic.jsonl",
         'eng_valid_file'    : f"{DATASET_DIR}/pretrain/valid_eng.jsonl",
-        'output_dir'        : f"{MODEL_DIR}/serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha-beta",
+        'output_dir'        : f"{MODEL_DIR}/partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha-beta",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -65,7 +65,7 @@ setups = {
         'wandb_project'    : "gemma-2-0.3B_all_arithmetic+eng_sp_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{MODEL_DIR}/local_records/serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha-beta.txt",
+        'path_local_record': f"{MODEL_DIR}/local_records/partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha-beta.txt",
 
         'shrink_perturb_repeat' : False
     }
@@ -200,7 +200,7 @@ def run_experiment(setup_id, alpha, beta, seed=None,
     # Register signal handler for Ctrl+C to save model before exiting
     def signal_handler(sig, frame):
         seed_msg = f", seed={seed}" if seed is not None else ""
-        print(f"\n[run_arithmetic_serum.py] Received interrupt signal for {setup_id}, alpha={alpha}{seed_msg}. Saving model before exiting...")
+        print(f"\n[run_arithmetic_partial_distill.py] Received interrupt signal for {setup_id}, alpha={alpha}{seed_msg}. Saving model before exiting...")
         # Create an unwrapped model for saving
         unwrapped_student = accelerator.unwrap_model(student_model) if 'student_model' in locals() else None
         
@@ -209,7 +209,7 @@ def run_experiment(setup_id, alpha, beta, seed=None,
             os.makedirs(os.path.dirname(interrupted_model_path), exist_ok=True)
             unwrapped_student.save_pretrained(interrupted_model_path)
             tokenizer.save_pretrained(interrupted_model_path) if 'tokenizer' in locals() else None
-            print(f"[run_arithmetic_serum.py] Saved interrupted model => {interrupted_model_path}")
+            print(f"[run_arithmetic_partial_distill.py] Saved interrupted model => {interrupted_model_path}")
         sys.exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)
@@ -238,7 +238,7 @@ def run_experiment(setup_id, alpha, beta, seed=None,
             forget_arithmetic_threshold=forget_arithmetic_threshold
         )
     
-    serum(
+    partial_distill(
         teacher_model_name= current_setup['teacher_model_name'],
         student_model_name= current_setup['student_model_name'],
         train_files       = [current_setup['eng_train_file'], current_setup['arithmetic_train_file']],
@@ -334,7 +334,7 @@ def run_all_experiments_parallel(
 
 if __name__ == "__main__":
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Run SERUM arithmetic experiments')
+    parser = argparse.ArgumentParser(description='Run partial_distill arithmetic experiments')
     parser.add_argument('--setup', type=str, default=None, help='Setup ID to run')
     parser.add_argument('--alpha', type=float, default=None, help='Alpha value for experiment')
     parser.add_argument('--beta', type=float, default=None, help='Beta value for experiment')
@@ -390,11 +390,11 @@ if __name__ == "__main__":
         parser.print_help()
         print("\nExamples:")
         print("  # Run a single experiment:")
-        print("  python run_serum_arithmetic.py --setup gemma-2-0.3B_MaxEnt --alpha 0.3 --beta 0.1")
-        print("  python run_serum_arithmetic.py --setup gemma-2-0.3B_MaxEnt --alpha 0.3 --seed 123")
+        print("  python run_partial_distill_arithmetic.py --setup gemma-2-0.3B_MaxEnt --alpha 0.3 --beta 0.1")
+        print("  python run_partial_distill_arithmetic.py --setup gemma-2-0.3B_MaxEnt --alpha 0.3 --seed 123")
         print("  # Run all experiments in parallel:")
-        print("  python run_serum_arithmetic.py --run_all")
+        print("  python run_partial_distill_arithmetic.py --run_all")
         print("  # Run with specific stopping condition:")
-        print("  python run_serum_arithmetic.py --run_all --stop_condition retain_arithmetic_only")
+        print("  python run_partial_distill_arithmetic.py --run_all --stop_condition retain_arithmetic_only")
         print("  # Resume from a specific alpha value:")
-        print("  python run_serum_arithmetic.py --start_alpha 0.4")
+        print("  python run_partial_distill_arithmetic.py --start_alpha 0.4")

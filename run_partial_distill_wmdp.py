@@ -1,4 +1,4 @@
-from code.tools.serum import serum
+from code.tools.partial_distill import partial_distill
 from code.utils.paths import CACHE_DIR, DATASET_DIR, WMDP_MODEL_DIR
 from accelerate import Accelerator
 from utils.loss_functions import print_acc, custom_login
@@ -47,7 +47,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -71,10 +71,10 @@ setups = {
         'noise_alpha'                 : 'TBD',
         'noise_beta'                  : 0,
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -90,7 +90,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -114,10 +114,10 @@ setups = {
         'noise_alpha'                 : 'TBD',
         'noise_beta'                  : 0,
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -134,7 +134,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -158,10 +158,10 @@ setups = {
         'noise_alpha'                 : 'TBD',
         'noise_beta'                  : 0,
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -176,7 +176,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/beta5-TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/beta5-TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -200,10 +200,10 @@ setups = {
         'noise_alpha'                 : 'TBD',
         'noise_beta'                  : 0.5,
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/beta5-TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/beta5-TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -218,7 +218,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/1536-TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/1536-TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -242,10 +242,10 @@ setups = {
         'noise_alpha'                 : .25,
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/1536-TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/1536-TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -260,7 +260,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/768-TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/768-TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -284,10 +284,10 @@ setups = {
         'noise_alpha'                 : .25,
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/768-TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/768-TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -302,7 +302,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/large-batch-TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/large-batch-TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -326,10 +326,10 @@ setups = {
         'noise_alpha'                 : 0.25,
         'noise_beta'                  : 0.1,
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/large-batch-TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/large-batch-TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -344,7 +344,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/switch-teacher-TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/switch-teacher-TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -368,10 +368,10 @@ setups = {
         'noise_alpha'                 : .25,
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/switch-teacher-TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/switch-teacher-TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -386,7 +386,7 @@ setups = {
         'teacher_model_name': 'TBD',
         'student_model_name': 'TBD',
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/mixed-teachers-TBD",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/mixed-teachers-TBD",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -410,10 +410,10 @@ setups = {
         'noise_alpha'                 : .25,
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-TBD-serum",
+        'wandb_project'    : "wmdp-TBD-partial_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/mixed-teachers-TBD.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/mixed-teachers-TBD.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -434,7 +434,7 @@ setups = {
                                 f"{DATASET_DIR}/pretrain/train_cyber-retain-corpus.jsonl",
                                 f"{DATASET_DIR}/pretrain/train_magpie.jsonl",
                             ],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/base/cyber-25-lr",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/base/cyber-25-lr",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -458,10 +458,10 @@ setups = {
         'noise_alpha'                 : .25,
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-cyber-serum-base",
+        'wandb_project'    : "wmdp-cyber-partial_distill-base",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/base/cyber-25-lr.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/base/cyber-25-lr.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -474,7 +474,7 @@ setups = {
         'student_model_name': f"{WMDP_MODEL_DIR}/unlearned_models/saved/cyber_qa_lr_5.0e-05_alpha_2.0000e-01",
         'train_files'       : [
                             ],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/rmu/cyber-25-lr",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/rmu/cyber-25-lr",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -498,10 +498,10 @@ setups = {
         'noise_alpha'                 : .25, 
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-cyber-serum-rmu",
+        'wandb_project'    : "wmdp-cyber-partial_distill-rmu",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/rmu/cyber-25-lr.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/rmu/cyber-25-lr.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -513,7 +513,7 @@ setups = {
         'teacher_model_name': f"{WMDP_MODEL_DIR}/unlearned_models/saved/max_ent_cyber_lr_2.0e-05_alpha_1.5000e-01",
         'student_model_name': f"{WMDP_MODEL_DIR}/unlearned_models/saved/max_ent_cyber_lr_2.0e-05_alpha_1.5000e-01",
         'train_files'       : [],
-        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_serum_models/max_ent/cyber-25-lr",
+        'output_dir'        : f"{WMDP_MODEL_DIR}/distilled_partial_distill_models/max_ent/cyber-25-lr",
         'cache_dir'         : CACHE_DIR,
         'dataset_cache_dir' : CACHE_DIR,
         'join_or_subsequence': True,
@@ -537,10 +537,10 @@ setups = {
         'noise_alpha'                 : .25, 
 
         'use_wandb'        : True,
-        'wandb_project'    : "wmdp-cyber-serum-max-ent",
+        'wandb_project'    : "wmdp-cyber-partial_distill-max-ent",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/serum_models/max_ent/cyber-25-lr.txt",
+        'path_local_record': f"{WMDP_MODEL_DIR}/local_records/partial_distill_models/max_ent/cyber-25-lr.txt",
 
         'shrink_perturb_repeat' : False,
         'compile_mode': 'default',
@@ -603,7 +603,7 @@ def run_experiment(setup_id, lr, train_files, model, seed, base_teacher_percent,
 
     current_setup['output_dir'] = current_setup['output_dir'].replace('TBD', tbd_path)
     current_setup['path_local_record'] = current_setup['path_local_record'].replace('TBD', tbd_path)
-    serum(
+    partial_distill(
         teacher_model_name= current_setup['teacher_model_name'],
         student_model_name= current_setup['student_model_name'],
         train_files       = files,

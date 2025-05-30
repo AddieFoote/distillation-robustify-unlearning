@@ -22,7 +22,7 @@ from utils.process_datasets import make_sequence_length
 
 
 
-def serum(
+def partial_distill(
     teacher_model_name,
     student_model_name,
 

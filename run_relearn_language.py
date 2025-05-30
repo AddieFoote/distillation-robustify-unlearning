@@ -4,7 +4,7 @@ Configured for a (any)xH200 GPU server.
 Launch Command: python run_relearn_language.py
 """
 
-from code.tools.relearn import relearn
+from code.tools.relearn_langarith import relearn
 from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
 from accelerate import Accelerator
 from utils.loss_functions import custom_login
@@ -29,27 +29,27 @@ MODELS_TO_RUN = [
     #'distilled_models/RMU/gemma-2-0.1B_eng+kor', # Distilled RMU
     #'distilled_models/MaxEnt/gemma-2-0.1B_eng+kor', # Distilled UF
 
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.1-beta_0.1',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.3-beta_0.1',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.5-beta_0.1',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.7-beta_0.1',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.1-beta_0.5',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.3-beta_0.5',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.5-beta_0.5',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.7-beta_0.5',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.1-beta_1.0',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.3-beta_1.0',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.5-beta_1.0',  # SERUM
-    #'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.7-beta_1.0',  # SERUM
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.1-beta_0.1',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.3-beta_0.1',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.5-beta_0.1',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.7-beta_0.1',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.1-beta_0.5',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.3-beta_0.5',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.5-beta_0.5',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.7-beta_0.5',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.1-beta_1.0',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.3-beta_1.0',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.5-beta_1.0',  # partial_distill
+    #'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.7-beta_1.0',  # partial_distill
 
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.1-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.2-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.3-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.4-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.5-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.6-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.7-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    'serum_models/gemma-2-0.1B_MaxEnt-language-SERUM-alpha_0.8-beta_0.1-seed_111-fixed_steps_500',  # SERUM
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.1-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.2-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.3-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.4-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.5-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.6-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.7-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    'partial_distill_models/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha_0.8-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
 ]
 # 1e-3, 7e-4, 4e-4, 1e-4, 7e-5, 5e-5, 1e-5, 7e-6, 4e-6, 1e-6
 # , 4e-6, 1e-6

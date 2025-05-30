@@ -39,7 +39,7 @@ ENG_TRAIN_OUT = os.path.join(OUT_DIR, "train_eng.jsonl")
 ENG_VALID_OUT = os.path.join(OUT_DIR, "valid_eng.jsonl")
 
 # load tokenizer once
-tokenizer = AutoTokenizer.from_pretrained('google/gemma-2-2b') # IS IT FINE TO DO THIS? WILL THIS CAUSE PROBLEMS IF GEMMA IS uPdaTED BUT NOT THE SAVED MDOELS?
+tokenizer = AutoTokenizer.from_pretrained('google/gemma-2-2b') 
 
 def tokenize_lines(lines, doc_max_len, use_one_per_line):
     """

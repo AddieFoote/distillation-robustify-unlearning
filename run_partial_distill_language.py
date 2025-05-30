@@ -1,11 +1,11 @@
 """
 Configured for a 4xH200 GPU server.
 
-Launch Command (Sweep): python run_serum_language_sweep_alpha.py --run_all
-Launch Command (Single): accelerate launch run_serum_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1
+Launch Command (Sweep): python run_partial_distill_language_sweep_alpha.py --run_all
+Launch Command (Single): accelerate launch run_partial_distill_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1
 """
 
-from code.tools.serum_original import serum
+from code.tools.partial_distill_langarith import partial_distill
 from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
 from accelerate import Accelerator
 from utils.loss_functions import print_acc, custom_login
@@ -41,7 +41,7 @@ setups = {
         'kor_train_file'    : f"{DATASET_DIR}/pretrain/train_kor.jsonl",
         'eng_valid_file'    : f"{DATASET_DIR}/pretrain/valid_eng.jsonl",
         'kor_valid_file'    : f"{DATASET_DIR}/pretrain/valid_kor.jsonl",
-        'output_dir'        : f"{MODEL_DIR}/serum_models_alt/gemma-2-0.1B_MaxEnt-language-SERUM-alpha-beta",
+        'output_dir'        : f"{MODEL_DIR}/partial_distill_models_alt/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha-beta",
         'cache_dir'         : "hf_cache",
         'dataset_cache_dir' : "hf_cache",
 
@@ -65,7 +65,7 @@ setups = {
         'wandb_project'    : "gemma-2-0.1B_eng+kor_ga_distill",
         'wandb_run_name'   : None,
         'use_local_record' : True,
-        'path_local_record': f"{MODEL_DIR}/local_records/serum_models_alt/gemma-2-0.1B_MaxEnt-language-SERUM-alpha-beta.txt",
+        'path_local_record': f"{MODEL_DIR}/local_records/partial_distill_models_alt/gemma-2-0.1B_MaxEnt-language-partial_distill-alpha-beta.txt",
 
         'shrink_perturb_repeat' : False
     }
@@ -137,7 +137,7 @@ def run_experiment(setup_id, alpha, beta, seed=None):
         accelerator=accelerator
     )
     
-    serum(
+    partial_distill(
         teacher_model_name=current_setup['teacher_model_name'],
         student_model_name=current_setup['student_model_name'],
         train_files=[current_setup['eng_train_file'], current_setup['kor_train_file']],
@@ -284,7 +284,7 @@ def run_all_experiments(start_alpha=None):
 
 if __name__ == "__main__":
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Run SERUM language experiments')
+    parser = argparse.ArgumentParser(description='Run partial_distill language experiments')
     parser.add_argument('--setup', type=str, default=None, help='Setup ID to run')
     parser.add_argument('--alpha', type=float, default=None, help='Alpha value for experiment')
     parser.add_argument('--beta', type=float, default=None, help='Beta value for experiment')
@@ -312,9 +312,9 @@ if __name__ == "__main__":
         parser.print_help()
         print("\nExamples:")
         print("  # Run a single experiment directly:")
-        print("  accelerate launch run_serum_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1")
-        print("  accelerate launch run_serum_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1 --seed 42")
+        print("  accelerate launch run_partial_distill_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1")
+        print("  accelerate launch run_partial_distill_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1 --seed 42")
         print("  # Run all experiments in separate accelerate launches:")
-        print("  python run_serum_language_sweep_alpha.py --run_all")
+        print("  python run_partial_distill_language_sweep_alpha.py --run_all")
         print("  # Resume from a specific alpha value:")
-        print("  python run_serum_language_sweep_alpha.py --start_alpha 0.4")
+        print("  python run_partial_distill_language_sweep_alpha.py --start_alpha 0.4")

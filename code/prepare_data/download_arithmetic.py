@@ -14,12 +14,16 @@ def generate_and_save(operations, amount, output_path):
     random.seed(SEED)
     all_elements = list(eq + wp)
     random.shuffle(all_elements)
+    # eq_string = "\n".join(all_elements)
+    # data_dict = {"text": eq_string}
     with open(output_path, "wb") as f:
         for element in all_elements:
             data_dict = {"text": element}
             print(data_dict)
             serialized_data = orjson.dumps(data_dict) + b"\n"
             f.write(serialized_data)
+        # serialized_data = orjson.dumps(data_dict)
+        # f.write(serialized_data)
     print(f"Saved to {output_path}")
 
 

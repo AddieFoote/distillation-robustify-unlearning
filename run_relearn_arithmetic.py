@@ -4,7 +4,7 @@ Configured for a (any)xA100 GPU server.
 Launch Command: python run_relearn_arithmetic.py
 """
 
-from code.tools.relearn import relearn
+from code.tools.relearn_langarith import relearn
 from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
 from accelerate import Accelerator
 from utils.loss_functions import print_acc
@@ -30,23 +30,23 @@ MODELS_TO_RUN = [
     #'distilled_models/RMU/gemma-2-0.3B_all_arithmetic+eng', # Distilled RMU
     # 'distilled_models/MaxEnt/gemma-2-0.3B_all_arithmetic+eng', # Distilled MaxEnt
 
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.1-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.2-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.3-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.4-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.5-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.6-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.7-beta_0.1-seed_123',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.8-beta_0.1-seed_123',  # SERUM
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.1-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.2-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.3-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.4-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.5-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.6-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.7-beta_0.1-seed_123',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.8-beta_0.1-seed_123',  # partial_distill
 
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.1-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.2-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.3-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.4-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.5-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.6-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.7-beta_0.1-seed_111-fixed_steps_500',  # SERUM
-    #'serum_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-SERUM-alpha_0.8-beta_0.1-seed_111-fixed_steps_500',  # SERUM
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.1-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.2-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.3-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.4-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.5-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.6-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.7-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
+    #'partial_distill_models_arith/gemma-2-0.3B_MaxEnt-arithmetic-partial_distill-alpha_0.8-beta_0.1-seed_111-fixed_steps_500',  # partial_distill
 
     #'unlearned_models/MaxEnt_RepNoise/gemma-2-0.3B_all_arithmetic+eng_a0.1_b0.001_lr_8.0e-05',
     #'unlearned_models/MaxEnt_RepNoise/gemma-2-0.3B_all_arithmetic+eng_a0.1_b0.0001_lr_8.0e-05',

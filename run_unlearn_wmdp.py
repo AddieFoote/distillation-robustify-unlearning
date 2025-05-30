@@ -1,6 +1,6 @@
-from code.tools.wmdp_unlearn.graddiff import unlearn_graddiff
-from code.tools.wmdp_unlearn.maxent import unlearn_maxent
-from code.tools.wmdp_unlearn.rmu import unlearn_rmu
+from code.tools.unlearn_wmdp.graddiff import unlearn_graddiff
+from code.tools.unlearn_wmdp.maxent import unlearn_maxent
+from code.tools.unlearn_wmdp.rmu import unlearn_rmu
 from accelerate import Accelerator
 import os
 import sys

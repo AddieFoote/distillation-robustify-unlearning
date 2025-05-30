@@ -1,6 +1,6 @@
-from code.tools.unlearn.graddiff import unlearn_graddiff  # renamed from ga
-from code.tools.unlearn.maxent import unlearn_maxent      # renamed from uf
-from code.tools.unlearn.rmu import unlearn_rmu            # unchanged
+from code.tools.unlearn_langarith.graddiff import unlearn_graddiff  # renamed from ga
+from code.tools.unlearn_langarith.maxent import unlearn_maxent      # renamed from uf
+from code.tools.unlearn_langarith.rmu import unlearn_rmu            # unchanged
 from accelerate import Accelerator
 import os
 import sys

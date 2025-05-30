@@ -1,4 +1,4 @@
-from code.tools.relearn import relearn
+from code.tools.relearn_wmdp import relearn
 from code.utils.paths import CACHE_DIR, DATASET_DIR, WMDP_MODEL_DIR
 from accelerate import Accelerator
 from utils.loss_functions import custom_login
@@ -12,16 +12,31 @@ SETUPS_TO_RUN = [
 ]
 eval_on_loss = False
 MODELS_TO_RUN = {
-    'bio_MaxEnt': 'saved_unlearned_models/MaxEnt/bio_lr_2.00e-05_alpha_0.30_seed_SEED/final_model',
-    'cyber_MaxEnt': 'saved_unlearned_models/MaxEnt/cyber_lr_2.00e-05_alpha_0.20_seed_SEED/final_model',
+    'partial_distill_bio_RMU' : 'distilled_partial_distill_models/general/bio_rmu/basic-all data-lr_1.000000e-05-seed_SEED/final_model',
+    'partial_distill_cyber_RMU' : 'distilled_partial_distill_models/general/cyber_rmu/basic-all data-lr_1.000000e-05-seed_SEED/final_model',
+
     'bio_RMU': 'saved_unlearned_models/RMU/bio_lr_5.00e-05_alpha_0.50_seed_SEED/final_model',
     'cyber_RMU': 'saved_unlearned_models/RMU/cyber_lr_2.00e-05_alpha_0.50_seed_SEED/final_model',
     
-    'serum_bio_MaxEnt': 'distilled_serum_models/general/bio_maxent/basic-all data-lr_2.000000e-05-seed_SEED/final_model',
-    'serum_cyber_MaxEnt': 'distilled_serum_models/general/cyber_maxent/basic-all data-lr_2.000000e-05-seed_SEED/final_model',
-    'serum_bio_RMU_1': 'distilled_serum_models/bio/bio_rmu/basic-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
-    'serum_cyber_RMU_1': 'distilled_serum_models/cyber/cyber_rmu/basic-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
+    # 'partial_distill_bio_MaxEnt': 'distilled_partial_distill_models/general/bio_maxent/basic-all data-lr_2.000000e-05-seed_SEED/final_model',
+    # 'partial_distill_cyber_MaxEnt': 'distilled_partial_distill_models/general/cyber_maxent/basic-all data-lr_2.000000e-05-seed_SEED/final_model',
+    'partial_distill_cyber_RMU_1': 'distilled_partial_distill_models/cyber/cyber_rmu/basic-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
     
+    # 'partial_distill_cyber_MaxEnt-RMU': 'distilled_partial_distill_models/cyber/cyber_maxent_and_rmu/basic-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
+
+    # 'partial_distill_cyber_MaxEnt-RMU_beta1': 'distilled_partial_distill_models/beta-cyber/cyber_maxent_and_rmu/basic-beta-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
+    # 'partial_distill_cyber_MaxEnt_beta1': 'distilled_partial_distill_models/beta-cyber/cyber_maxent/basic-beta-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
+    # 'partial_distill_cyber_RMU_beta1': 'distilled_partial_distill_models/beta-cyber/cyber_rmu/basic-beta-all data-lr_2.000000e-05-base-p_0-seed_SEED/final_model',
+    # 'bio_MaxEnt': 'saved_unlearned_models/MaxEnt/bio_lr_2.00e-05_alpha_0.30_seed_SEED/final_model',
+    # 'cyber_MaxEnt': 'saved_unlearned_models/MaxEnt/cyber_lr_2.00e-05_alpha_0.20_seed_SEED/final_model',
+    'bio_SAM': 'unlearned_models/MaxEnt-SAM-kl/bio_lr_2.00e-05_alpha_0.30_seed_SEED/final_model',
+    'cyber_SAM': 'unlearned_models/MaxEnt-SAM-kl/cyber_lr_2.00e-05_alpha_0.50_seed_SEED/final_model',
+    'bio_repnoise': 'unlearned_models/MaxEnt-repnoise-kl/bio_lr_2.00e-05_alpha_0.30_seed_SEED/final_model',
+    'cyber_repnoise': 'unlearned_models/MaxEnt-repnoise-kl/cyber_lr_2.00e-05_alpha_0.50_seed_SEED/final_model',
+
+    # 'base_cyber': 'gemma-2-2b',
+    # 'base_bio': 'gemma-2-2b',
+
     'cyber_MaxEnt_1': 'saved_unlearned_models/MaxEnt/cyber_lr_3.50e-05_alpha_0.30_seed_SEED/final_model',
     'cyber_MaxEnt_2': 'saved_unlearned_models/MaxEnt/cyber_lr_5.00e-05_alpha_0.30_seed_SEED/final_model',
     'bio_MaxEnt_1': 'saved_unlearned_models/MaxEnt/bio_lr_2.00e-05_alpha_0.10_seed_SEED/final_model',

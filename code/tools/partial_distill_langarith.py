@@ -20,7 +20,7 @@ from utils.loss_functions import forward_kl_loss_fn, print_acc, custom_makedirs
 from utils.validation_functions import evaluate_kd_ce_ppl
 from utils.process_datasets import make_sequence_length
 
-def serum(
+def partial_distill(
     teacher_model_name,
     student_model_name,
 
