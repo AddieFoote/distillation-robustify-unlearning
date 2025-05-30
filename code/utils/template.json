@@ -1,0 +1,498 @@
+{
+    "addition": [
+        [
+            "%(name)s has %(number1)d %(object)s. %(name2)s gives them %(number2)d more %(object)s. %(name)s now has ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the %(place)s. %(name)s adds %(number2)d more %(object)s. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s finds %(number1)d %(object)s in their %(container)s. Later, they find %(number2)d more %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The %(place)s has %(number1)d %(object)s. %(name)s brings %(number2)d more %(object)s. The %(place)s now has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s starts with %(number1)d %(object)s. Their %(name2)s gives them %(number2)d more %(object)s. %(name)s ends up with ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s on the shelf. %(name)s puts %(number2)d more %(object)s there. Now there are ",
+            "%(object)s on the shelf."
+        ],
+        [
+            "%(name)s collects %(number1)d %(object)s on Monday. On Tuesday, they collect %(number2)d more %(object)s. They now have ",
+            "%(object)s."
+        ],
+        [
+            "The %(container)s already has %(number1)d %(object)s. %(name)s adds %(number2)d more %(object)s to it. The %(container)s now has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s has %(number1)d %(object)s in their collection. They buy %(number2)d more %(object)s. Their collection grows to ",
+            "%(object)s."
+        ],
+        [
+            "The %(place)s starts with %(number1)d %(object)s. %(name2)s brings in %(number2)d more %(object)s. The %(place)s now has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s counts %(number1)d %(object)s in the morning. They receive %(number2)d more %(object)s in the afternoon. They now have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the first %(container)s. %(name)s adds %(number2)d more %(object)s. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s sees %(number1)d %(object)s in the %(place)s. %(name2)s brings %(number2)d more %(object)s. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "The class has %(number1)d %(object)s. %(name)s contributes %(number2)d more %(object)s. The class now has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s finds %(number1)d %(object)s at home. Later, they get %(number2)d more %(object)s from %(name2)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the basket. %(name)s puts in %(number2)d more %(object)s. The basket now has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s brings %(number1)d %(object)s to school. %(name2)s shares %(number2)d more %(object)s. Now they have ",
+            "%(object)s together."
+        ],
+        [
+            "The %(container)s contains %(number1)d %(object)s. %(name)s adds %(number2)d more %(object)s. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s starts with %(number1)d %(object)s. They earn %(number2)d more %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s on the table. %(name)s places %(number2)d more %(object)s. Now there are ",
+            "%(object)s."
+        ]
+    ],
+    "subtraction": [
+        [
+            "%(name)s has %(number1)d %(object)s. They give %(number2)d %(object)s to %(name2)s. %(name)s now has ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s on the %(place)s. %(number2)d %(object)s fall off. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s starts with %(number1)d %(object)s. They lose %(number2)d %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The %(container)s has %(number1)d %(object)s. %(name)s takes %(number2)d %(object)s out. Now there are ",
+            "%(object)s left."
+        ],
+        [
+            "%(name)s collected %(number1)d %(object)s. They gave %(number2)d %(object)s to %(name2)s. They now have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the %(place)s. %(number2)d %(object)s are removed. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s has %(number1)d %(object)s in their %(container)s. They use %(number2)d %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The class has %(number1)d %(object)s. %(number2)d %(object)s get broken. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s brings %(number1)d %(object)s. They share %(number2)d %(object)s with friends. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s on the shelf. %(number2)d %(object)s are taken. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s buys %(number1)d %(object)s. They give %(number2)d %(object)s to %(name2)s. They keep ",
+            "%(object)s."
+        ],
+        [
+            "The %(place)s has %(number1)d %(object)s. %(number2)d %(object)s are sold. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s finds %(number1)d %(object)s. They lose %(number2)d %(object)s on the way home. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the basket. %(number2)d %(object)s are eaten. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s starts with %(number1)d %(object)s. They spend %(number2)d %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The %(container)s holds %(number1)d %(object)s. %(number2)d %(object)s are used. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s has %(number1)d %(object)s. %(number2)d %(object)s break. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in total. %(number2)d %(object)s are given away. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s counts %(number1)d %(object)s. They drop %(number2)d %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The team has %(number1)d %(object)s. They lose %(number2)d %(object)s during practice. Now they have ",
+            "%(object)s."
+        ]
+    ],
+    "multiplication": [
+        [
+            "Each %(container)s has %(number1)d %(object)s. If there are %(number2)d %(container)ss, in total there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s arranges %(number1)d %(object)s in each row. If there are %(number2)d rows, there are ",
+            "%(object)s in total."
+        ],
+        [
+            "If %(name)s puts %(number1)d %(object)s in each %(container)s, and fills %(number2)d %(container)ss, there are ",
+            "%(object)s altogether."
+        ],
+        [
+            "%(name)s has %(number2)d equal groups of %(number1)d %(object)s. In total, there are ",
+            "%(object)s."
+        ],
+        [
+            "Each day %(name)s collects %(number1)d %(object)s. After %(number2)d days, they have ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s puts %(number1)d %(object)s on each plate. With %(number2)d plates, there are ",
+            "%(object)s in total."
+        ],
+        [
+            "If there are %(number1)d %(object)s in each %(container)s, and %(number2)d %(container)ss in total, there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s stacks %(number1)d %(object)s in each pile. With %(number2)d piles, there are ",
+            "%(object)s altogether."
+        ],
+        [
+            "Each %(group)s needs %(number1)d %(object)s. For %(number2)d %(group)ss, they need ",
+            "%(object)s in total."
+        ],
+        [
+            "%(name)s places %(number1)d %(object)s in each box. With %(number2)d boxes, there are ",
+            "%(object)s."
+        ],
+        [
+            "If %(name)s repeats a pattern of %(number1)d %(object)s %(number2)d times, there are ",
+            "%(object)s in total."
+        ],
+        [
+            "%(name)s puts %(number1)d %(object)s in each bag. With %(number2)d bags, there are ",
+            "%(object)s altogether."
+        ],
+        [
+            "Every shelf holds %(number1)d %(object)s. With %(number2)d shelves, there are ",
+            "%(object)s in total."
+        ],
+        [
+            "%(name)s has %(number2)d sets of %(number1)d %(object)s. In total, there are ",
+            "%(object)s."
+        ],
+        [
+            "If %(name)s draws %(number1)d %(object)s each time, and draws %(number2)d times, they draw ",
+            "%(object)s in total."
+        ],
+        [
+            "Each package contains %(number1)d %(object)s. If there are %(number2)d packages, there are ",
+            "%(object)s altogether."
+        ],
+        [
+            "%(name)s uses %(number1)d %(object)s each time. After using them %(number2)d times, they use ",
+            "%(object)s in total."
+        ],
+        [
+            "If %(name)s repeats groups of %(number1)d %(object)s %(number2)d times, there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s puts %(number1)d %(object)s in each jar. With %(number2)d jars, there are ",
+            "%(object)s in total."
+        ],
+        [
+            "Every bundle has %(number1)d %(object)s. With %(number2)d bundles, there are ",
+            "%(object)s altogether."
+        ]
+    ],
+    "division": [
+        [
+            "%(name)s has %(number1)d %(object)s and wants to put them equally into %(number2)d %(container)ss. Each %(container)s has ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s that need to be shared equally among %(number2)d %(group)ss. Each %(group)s gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s wants to split %(number1)d %(object)s evenly between %(number2)d friends. Each friend receives ",
+            "%(object)s."
+        ],
+        [
+            "The class has %(number1)d %(object)s to distribute among %(number2)d students. Each student gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s divides %(number1)d %(object)s into %(number2)d equal groups. Each group has ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s to be packed equally into %(number2)d boxes. Each box gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s shares %(number1)d %(object)s among %(number2)d %(container)ss. Each %(container)s receives ",
+            "%(object)s."
+        ],
+        [
+            "The team divides %(number1)d %(object)s among %(number2)d players. Each player gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s arranges %(number1)d %(object)s into %(number2)d equal rows. Each row has ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s to distribute among %(number2)d %(place)s. Each %(place)s gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s splits %(number1)d %(object)s between %(number2)d %(group)ss. Each %(group)s receives ",
+            "%(object)s."
+        ],
+        [
+            "The store divides %(number1)d %(object)s equally among %(number2)d shelves. Each shelf holds ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s shares %(number1)d %(object)s with %(number2)d classmates. Each classmate gets ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s to sort into %(number2)d equal piles. Each pile has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s divides %(number1)d %(object)s for %(number2)d days. They use ",
+            "%(object)s each day."
+        ],
+        [
+            "The %(place)s separates %(number1)d %(object)s into %(number2)d sections. Each section has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s distributes %(number1)d %(object)s among %(number2)d teams. Each team gets ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s to divide among %(number2)d %(container)ss. Each %(container)s gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s shares %(number1)d %(object)s with %(number2)d siblings. Each sibling receives ",
+            "%(object)s."
+        ],
+        [
+            "The school divides %(number1)d %(object)s among %(number2)d classes. Each class gets ",
+            "%(object)s."
+        ]
+    ],
+    "addition_val": [
+        [
+            "%(name)s wins %(number1)d %(object)s in a game. Then they win %(number2)d more %(object)s. They now have ",
+            "%(object)s."
+        ],
+        [
+            "The %(place)s receives %(number1)d %(object)s in the morning. In the afternoon, they receive %(number2)d more %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s makes %(number1)d %(object)s. Their %(name2)s helps make %(number2)d more %(object)s. Together they made ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in a %(container)s. %(name)s finds %(number2)d more %(object)s to add. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s collects %(number1)d %(object)s from the %(place)s. Later, they find %(number2)d more %(object)s at home. They now have ",
+            "%(object)s."
+        ],
+        [
+            "The %(group)s starts with %(number1)d %(object)s. They earn %(number2)d more %(object)s. The %(group)s now has ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s buys %(number1)d %(object)s at the store. %(name2)s gives them %(number2)d more %(object)s. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The %(container)s on the table has %(number1)d %(object)s. %(name)s puts %(number2)d more %(object)s in it. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s counts %(number1)d %(object)s in their collection. They add %(number2)d new %(object)s. Their collection now has ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the %(place)s. %(name)s brings in %(number2)d more %(object)s. Now there are ",
+            "%(object)s."
+        ]
+    ],
+    "subtraction_val": [
+        [
+            "%(name)s has %(number1)d %(object)s. They drop %(number2)d %(object)s on the way home. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The %(place)s starts with %(number1)d %(object)s. %(number2)d %(object)s are sold. Now there are ",
+            "%(object)s left."
+        ],
+        [
+            "%(name)s makes %(number1)d %(object)s. %(number2)d %(object)s break. They now have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s in the %(container)s. %(name)s takes %(number2)d %(object)s out. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s collects %(number1)d %(object)s. They give %(number2)d %(object)s to their friend. They still have ",
+            "%(object)s."
+        ],
+        [
+            "The %(group)s has %(number1)d %(object)s. They use %(number2)d %(object)s for a project. They have ",
+            "%(object)s remaining."
+        ],
+        [
+            "%(name)s starts with %(number1)d %(object)s. They lose %(number2)d %(object)s at the park. Now they have ",
+            "%(object)s."
+        ],
+        [
+            "The %(container)s is filled with %(number1)d %(object)s. %(number2)d %(object)s are removed. Now there are ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s counts %(number1)d %(object)s in their backpack. %(number2)d %(object)s fall out. They now have ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s on display. %(number2)d %(object)s get purchased. Now there are ",
+            "%(object)s."
+        ]
+    ],
+    "multiplication_val": [
+        [
+            "%(name)s arranges %(number1)d %(object)s in each display. If they make %(number2)d displays, there are ",
+            "%(object)s total."
+        ],
+        [
+            "Each %(container)s needs %(number1)d %(object)s. If there are %(number2)d %(container)ss to fill, they need ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s puts %(number1)d %(object)s in each section. With %(number2)d sections, there are ",
+            "%(object)s altogether."
+        ],
+        [
+            "If each %(group)s uses %(number1)d %(object)s, and there are %(number2)d %(group)ss, they use ",
+            "%(object)s in total."
+        ],
+        [
+            "%(name)s creates bundles of %(number1)d %(object)s. If they make %(number2)d bundles, there are ",
+            "%(object)s."
+        ],
+        [
+            "Each level has %(number1)d %(object)s. If there are %(number2)d levels, there are ",
+            "%(object)s in total."
+        ],
+        [
+            "%(name)s places %(number1)d %(object)s in each %(container)s. With %(number2)d %(container)ss, there are ",
+            "%(object)s."
+        ],
+        [
+            "Every %(group)s gets %(number1)d %(object)s. With %(number2)d %(group)ss participating, there are ",
+            "%(object)s total."
+        ],
+        [
+            "%(name)s stacks %(number1)d %(object)s in each pile. Making %(number2)d piles creates ",
+            "%(object)s altogether."
+        ],
+        [
+            "If there are %(number1)d %(object)s in one set, then %(number2)d sets contain ",
+            "%(object)s."
+        ]
+    ],
+    "division_val": [
+        [
+            "%(name)s needs to divide %(number1)d %(object)s equally among %(number2)d friends. Each friend gets ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s to be sorted into %(number2)d %(container)ss. Each %(container)s should get ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s wants to split %(number1)d %(object)s into %(number2)d equal parts. Each part will have ",
+            "%(object)s."
+        ],
+        [
+            "The %(group)s divides %(number1)d %(object)s among %(number2)d members. Each member receives ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s separates %(number1)d %(object)s into %(number2)d equal piles. Each pile contains ",
+            "%(object)s."
+        ],
+        [
+            "There are %(number1)d %(object)s to distribute among %(number2)d %(place)s. Each %(place)s gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s shares %(number1)d %(object)s equally with %(number2)d teammates. Each teammate gets ",
+            "%(object)s."
+        ],
+        [
+            "The %(place)s has %(number1)d %(object)s to divide among %(number2)d %(container)ss. Each %(container)s gets ",
+            "%(object)s."
+        ],
+        [
+            "%(name)s arranges %(number1)d %(object)s equally into %(number2)d rows. Each row has ",
+            "%(object)s."
+        ],
+        [
+            "If %(number1)d %(object)s are shared equally among %(number2)d %(group)ss, each %(group)s receives ",
+            "%(object)s."
+        ]
+    ]
+}

@@ -32,6 +32,12 @@ MANIFEST
 *.manifest
 *.spec
 
+hf_cache
+models
+wandb
+.png
+graphing_tools
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
