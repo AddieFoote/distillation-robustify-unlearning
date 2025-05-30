@@ -4,7 +4,7 @@ import math
 import json
 import torch
 from torch.utils.data import DataLoader
-from torch.nn import MSELoss
+from torch.nn import CrossEntropyLoss
 from datasets import load_dataset
 from accelerate import Accelerator
 from transformers import (
@@ -14,13 +14,19 @@ from transformers import (
     DataCollatorWithPadding
 )
 import wandb
-from code.utils.process_datasets import make_sequence_length
-from code.utils.loss_functions import print_acc
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+from src.utils.process_datasets import make_sequence_length
+from src.utils.loss_functions import cross_entropy_loss_fn, print_acc
 
 # Import RepNoise components
-from code.utils.repnoise_loss import rep_noise_loss, register_activation_hook, MMD_loss
+from src.utils.repnoise_loss import rep_noise_loss, register_activation_hook, MMD_loss
 
-def unlearn_rmu(
+# Import SAM utilities
+from src.utils.sam_utils import compute_sam_perturbation, apply_perturbation
+
+def unlearn_maxent(
     model_name,
     forget_train_file,
     retain_train_file,
@@ -31,14 +37,8 @@ def unlearn_rmu(
     dataset_cache_dir,
     join_or_subsequence,
 
-    # If True, also do normal MSE on 'retain' data to preserve them
-    ga_gd,
-
-    # Additional hyperparams for RMU
-    rmu_layers,  # list of int indices
-    end_layer,   # up to which layer we consider hidden states
-    alpha,       # weight for retain loss
-    c,           # scale for distractor
+    use_retain,
+    
     seed,
     device,
     batch_size,
@@ -62,40 +62,46 @@ def unlearn_rmu(
 
     use_local_record,
     path_local_record,
-    
+
+    # Add balance_alpha parameter to control the forget-retain trade-off for maxent
+    balance_alpha=1.0,
+
     # RepNoise parameters
     use_repnoise=False,         # Option to turn RepNoise on/off
-    repnoise_alpha=1.0,         # Alpha parameter for RepNoise loss
     repnoise_beta=0.001,        # Beta parameter for RepNoise loss
+    repnoise_alpha=1.0,         # Alpha parameter for RepNoise loss
     
     # SAM parameters
     use_sam=False,              # Option to turn SAM on/off
     sam_rho=0.05,               # Rho parameter (perturbation size) for SAM
 ):
     """
-    RMU script in the same style as the GA script:
-      - freeze all layers except MLP down_proj in `rmu_layers`
-      - on 'forget' data: push hidden states at `end_layer` to a random 'distractor'
-      - on 'retain' data (if ga_gd=True): push hidden states to match the original (frozen) model
+    Uniform Forget script using Accelerate on pretokenized JSONL datasets.
     
-    Additional options:
-      - RepNoise: Add representation noising for robust unlearning
-      - SAM: Use Sharpness-Aware Minimization for more robust unlearning
+    - "Forget" dataset => uniform_forget_loss_fn, i.e., push model logits to uniform 
+      via forward KL with teacher_logits=ones.
+    - "Retain" dataset (if use_retain=True) => normal cross-entropy (to preserve knowledge).
+    - RepNoise (if use_repnoise=True) => adds representation noising for more robust unlearning.
+    - SAM (if use_sam=True) => Sharpness-Aware Minimization for more robust unlearning.
+    - balance_alpha => Controls the balance between forget and retain losses.
+                      Higher values emphasize retain loss, lower values emphasize forget loss.
+                      Set to 0 to completely ignore retain loss.
     """
+    accelerator = Accelerator()
     print_message = accelerator.is_main_process
 
     # Validate RepNoise settings
-    if use_repnoise and (not ga_gd or not retain_train_file.strip()):
-        print_acc("[rmu.py] WARNING: RepNoise requires both forget and retain datasets. Disabling RepNoise.", print_message)
+    if use_repnoise and (not use_retain or not retain_train_file.strip()):
+        print_acc("[maxent.py] WARNING: RepNoise requires both forget and retain datasets. Disabling RepNoise.", print_message)
         use_repnoise = False
     
     # Validate SAM settings
-    if use_sam and (not ga_gd or not retain_train_file.strip()):
-        print_acc("[rmu.py] WARNING: SAM requires both forget and retain datasets. Disabling SAM.", print_message)
+    if use_sam and (not use_retain or not retain_train_file.strip()):
+        print_acc("[maxent.py] WARNING: SAM requires both forget and retain datasets. Disabling SAM.", print_message)
         use_sam = False
 
     train_args = {**locals()}
-    print_acc(f"[rmu.py] Initiated RMU training with:\n{train_args}", print_message)
+    print_acc(f"[maxent.py] Initiated training with:\n{train_args}", print_message)
 
     # ----------------------------------------------------------------
     # Setup: seeds, directories, W&B, local record
@@ -115,69 +121,49 @@ def unlearn_rmu(
     # ----------------------------------------------------------------
     # Load model + tokenizer
     # ----------------------------------------------------------------
-    print_acc(f"[rmu.py] Loading model {model_name}", print_message)
+    print_acc(f"[maxent.py] Loading model {model_name}", print_message)
     model_config = AutoConfig.from_pretrained(model_name, cache_dir=cache_dir)
     model = AutoModelForCausalLM.from_pretrained(
         model_name,
         cache_dir=cache_dir,
         attn_implementation='eager',
-        output_hidden_states=True  # we need the hidden states
+        torch_dtype=torch.bfloat16
     )
-
-    # Frozen model for reference
-    frozen_model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        cache_dir=cache_dir,
-        attn_implementation='eager',
-        output_hidden_states=True
-    )
-    frozen_model.eval()
-
     tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    # Move to device
-    model.to(device)
-    frozen_model.to(device)
+    # ----------------------------------------------------------------
+    # Helper: filter function for length
+    # ----------------------------------------------------------------
+    def filter_long_batch(batch):
+        """Return a list of booleans for each example in the batch."""
+        return [len(ids) <= max_length for ids in batch["input_ids"]]
 
     # ----------------------------------------------------------------
-    # Freeze all parameters, except MLP down_proj in the specified layers
-    # ----------------------------------------------------------------
-    for param in model.parameters():
-        param.requires_grad = False
-
-    # Example: rmu_layers = [3, 4, 5]
-    # We only unfreeze the "down_proj" submodule in those layers
-    for layer_idx in rmu_layers:
-        # e.g. model.model.layers[layer_idx].mlp.down_proj
-        for param in model.model.layers[layer_idx].mlp.down_proj.parameters():
-            param.requires_grad = True
-
-    # ----------------------------------------------------------------
-    # Load FORGET dataset (Required for unlearning)
+    # Load FORGET dataset (Required for uniform forget)
     # ----------------------------------------------------------------
     if not forget_train_file.strip():
         raise ValueError("forget_train_file is empty => must provide a dataset to 'forget'")
-    print_acc("[rmu.py] Loading 'forget' dataset", print_message)
+    print_acc("[maxent.py] Loading 'forget' dataset", print_message)
     forget_ds = load_dataset(
         "json",
         data_files=forget_train_file,
         split="train",
         cache_dir=dataset_cache_dir
     )
-    print_acc(f"[rmu.py] Forget dataset size: {len(forget_ds)}", print_message)
+    print_acc(f"[maxent.py] Forget dataset size: {len(forget_ds)}", print_message)
     sample_text = forget_ds[0]["text"].replace('\n', ' ')
-    print_acc(f'[rmu.py] Sample forget text: "{sample_text[:200]}..."', print_message)
+    print_acc(f'[maxent.py] Sample forget text: "{sample_text[:200]}..."', print_message)
 
     # ------------------------------------------------------------
     # Process for sequence length
     # If join_or_subsequence, form sequences of exactly max_length by joining multiple or using subsequences
     # else filter for only those less than max_length
     # ------------------------------------------------------------
-    train_ds_list, message = make_sequence_length(train_ds_list=[forget_ds], tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
+    forget_ds_list, message = make_sequence_length(train_ds_list=[forget_ds], tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
     print_acc(message, print_message)
-    forget_ds = train_ds_list[0]
+    forget_ds = forget_ds_list[0]
     forget_loader = DataLoader(
         forget_ds,
         batch_size=batch_size,
@@ -186,27 +172,27 @@ def unlearn_rmu(
     )
 
     # ----------------------------------------------------------------
-    # Load RETAIN dataset (Used for ga_gd, RepNoise, and SAM)
+    # Load Retain Dataset (Used only if use_retain=True)
     # ----------------------------------------------------------------
-    if ga_gd and retain_train_file.strip():
-        print_acc("[rmu.py] => RMU + Retain => loading 'retain' dataset", print_message)
+    if use_retain and retain_train_file.strip():
+        print_acc("[maxent.py] => loading 'retain' dataset", print_message)
         retain_ds = load_dataset(
             "json",
             data_files=retain_train_file,
             split="train",
             cache_dir=dataset_cache_dir
         )
-        print_acc(f"[rmu.py] Retain dataset size: {len(retain_ds)}", print_message)
+        print_acc(f"[maxent.py] Retain dataset size: {len(retain_ds)}", print_message)
         sample_text_r = retain_ds[0]["text"].replace('\n', ' ')
-        print_acc(f'[rmu.py] Sample retain text: "{sample_text_r[:200]}..."', print_message)
+        print_acc(f'[maxent.py] Sample retain text: "{sample_text_r[:200]}..."', print_message)
         # ------------------------------------------------------------
         # Process for sequence length
         # If join_or_subsequence, form sequences of exactly max_length by joining multiple or using subsequences
         # else filter for only those less than max_length
         # ------------------------------------------------------------
-        train_ds_list, message = make_sequence_length(train_ds_list=[retain_ds], tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
+        retain_ds_list, message = make_sequence_length(train_ds_list=[retain_ds], tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
         print_acc(message, print_message)
-        retain_ds = train_ds_list[0]
+        retain_ds = retain_ds_list[0]
         retain_loader = DataLoader(
             retain_ds,
             batch_size=batch_size,
@@ -214,13 +200,14 @@ def unlearn_rmu(
             collate_fn=DataCollatorWithPadding(tokenizer=tokenizer, padding="max_length", max_length=max_length)
         )
     else:
+        # either use_retain=False, or retain_train_file is empty => No "retain" data
         retain_loader = None
 
     # ----------------------------------------------------------------
     # Determine steps
     # ----------------------------------------------------------------
     steps_per_epoch_forget = len(forget_loader)
-    if ga_gd and retain_loader is not None:
+    if use_retain and retain_loader is not None:
         steps_per_epoch_retain = len(retain_loader)
         steps_per_epoch = max(steps_per_epoch_forget, steps_per_epoch_retain)
     else:
@@ -230,12 +217,12 @@ def unlearn_rmu(
     total_steps = effective_steps_per_epoch * epochs
     if max_steps > 0:
         total_steps = min(total_steps, max_steps)
-    print_acc(f"[rmu.py] {steps_per_epoch} steps per epoch, total steps: {total_steps}", print_message)
+    print_acc(f"[maxent.py] {steps_per_epoch} steps per epoch, total steps: {total_steps}", print_message)
 
     # ----------------------------------------------------------------
     # Optimizer + LR scheduler
     # ----------------------------------------------------------------
-    print_acc(f"[rmu.py] Using AdamW optimizer, LR={learning_rate}, weight_decay={weight_decay}", print_message)
+    print_acc(f"[maxent.py] Using AdamW optimizer, LR={learning_rate}, weight_decay={weight_decay}", print_message)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
     if scheduler_type == "linear":
@@ -263,34 +250,26 @@ def unlearn_rmu(
     else:
         raise ValueError(f"Unknown scheduler type: {scheduler_type}")
 
+    # ----------------------------------------------------------------
     # Prepare with Accelerator
+    # ----------------------------------------------------------------
     model, optimizer, forget_loader, scheduler = accelerator.prepare(
         model, optimizer, forget_loader, scheduler
     )
-    if ga_gd and retain_loader is not None:
+    if use_retain and retain_loader is not None:
         retain_loader = accelerator.prepare(retain_loader)
-
-    # ----------------------------------------------------------------
-    # Create random 'distractor' direction
-    # ----------------------------------------------------------------
-    # We'll create a single random vector 'u' of shape (hidden_size,)
-    # Then scale by c as needed in the loop. 
-    # (We can do batch repeat or broadcast.)
-    with torch.no_grad():
-        hidden_size = model_config.hidden_size  # or model.config.hidden_size
-        u = torch.randn(hidden_size, device=device)
-        u = u / u.norm()  # unit norm
-
-    # We'll compute MSE ourselves
-    mse_loss_fn = MSELoss(reduction="mean")
 
     # ----------------------------------------------------------------
     # Training loop
     # ----------------------------------------------------------------
-    print_acc("[rmu.py] Starting RMU training", print_message)
+    print_acc("[maxent.py] Starting training", print_message)
+    
+    # Log balance_alpha setting
+    if balance_alpha != 1.0:
+        print_acc(f"[maxent.py] Using balance_alpha={balance_alpha} to weight retain vs forget loss", print_message)
 
     # Initial validation before training
-    print_acc("[rmu.py] Running initial validation before training...", print_message)
+    print_acc("[maxent.py] Running initial validation before training...", print_message)
     initial_val_log_dict = eval_fn(model, print_results=True)
     initial_val_log_dict["train/step"] = 0
     initial_val_log_dict["train/tokens_seen"] = 0
@@ -304,20 +283,13 @@ def unlearn_rmu(
     global_tokens = 0
 
     forget_loader_iter = iter(forget_loader)
-    retain_loader_iter = iter(retain_loader) if (ga_gd and retain_loader) else None
+    retain_loader_iter = iter(retain_loader) if (use_retain and retain_loader) else None
 
     for epoch in range(epochs):
-        print_acc(f"[rmu.py] Epoch {epoch+1}/{epochs}", print_message)
+        print_acc(f"[maxent.py] Epoch {epoch+1}/{epochs}", print_message)
         model.train()
-        frozen_model.eval()
 
         for step_in_epoch in range(steps_per_epoch):
-            # Initialize SAM variables if SAM is enabled
-            if use_sam:
-                # Store original parameters for later restoration
-                param_list = [p for p in model.parameters() if p.requires_grad]
-                original_params = [p.data.clone() for p in param_list]
-
             # 1) Get forget batch
             try:
                 forget_batch = next(forget_loader_iter)
@@ -325,160 +297,129 @@ def unlearn_rmu(
                 forget_loader_iter = iter(forget_loader)
                 forget_batch = next(forget_loader_iter)
 
-            # Forward pass (forget data) => get hidden states
+            # Forward pass on forget data => uniform_forget_loss_fn
             outputs_forget = model(
                 input_ids=forget_batch["input_ids"],
-                attention_mask=forget_batch["attention_mask"],
-                output_hidden_states=True
+                attention_mask=forget_batch["attention_mask"]
             )
-            # Grab the hidden state at end_layer: shape (batch, seq_len, hidden_size)
-            forget_hidden = outputs_forget.hidden_states[end_layer]
-
-            # We want to push these hidden states to c * u (the "distractor")
-            # We'll broadcast (batch, seq_len, hidden_size) => multiply c*(u)
-            # We'll shape u => (1,1,hidden_size) => expand
-            distractor = c * u.unsqueeze(0).unsqueeze(0)  # shape (1,1,hidden_size)
-            distractor = distractor.expand(forget_hidden.size(0), forget_hidden.size(1), -1)
+            uniform_ce_forget = uniform_forget_loss_fn(
+                outputs_forget.logits,
+                forget_batch["input_ids"],
+                tokenizer.pad_token_id,
+                loss_mask = forget_batch.get("loss_mask")
+            )
             
-            l_forget = mse_loss_fn(forget_hidden, distractor)  # MSE
-
-            # 2) If ga_gd => get retain batch => preserve original hidden states
-            if ga_gd and retain_loader_iter is not None:
+            # 2) If use_retain => also get retain batch (normal CE)
+            if use_retain and retain_loader_iter is not None:
                 try:
                     retain_batch = next(retain_loader_iter)
                 except StopIteration:
                     retain_loader_iter = iter(retain_loader)
                     retain_batch = next(retain_loader_iter)
 
-                # We'll forward pass both the new model + frozen model on the retain data
-                with torch.no_grad():
-                    fro_outputs = frozen_model(
-                        input_ids=retain_batch["input_ids"],
-                        attention_mask=retain_batch["attention_mask"],
-                        output_hidden_states=True
-                    )
-                    fro_hidden = fro_outputs.hidden_states[end_layer]
-
-                new_outputs = model(
+                outputs_retain = model(
                     input_ids=retain_batch["input_ids"],
-                    attention_mask=retain_batch["attention_mask"],
-                    output_hidden_states=True
+                    attention_mask=retain_batch["attention_mask"]
                 )
-                new_hidden = new_outputs.hidden_states[end_layer]
+                ce_loss_retain = cross_entropy_loss_fn(
+                    outputs_retain.logits,
+                    retain_batch["input_ids"],
+                    tokenizer.pad_token_id,
+                    loss_mask = retain_batch.get("loss_mask")
+                )
 
-                l_retain = mse_loss_fn(new_hidden, fro_hidden)
-                
                 # If RepNoise is enabled and we have both forget and retain batches
                 if use_repnoise:
                     # Map forget_batch -> harmful_batch, retain_batch -> harmless_batch
-                    repnoise_loss_val = rep_noise_loss(
+                    repnoise_loss = rep_noise_loss(
                         model=model,
                         harmful_batch=forget_batch,
                         harmless_batch=retain_batch,
                         beta=repnoise_beta,
                         alpha=repnoise_alpha
                     )
-                    # Add RepNoise to the loss
-                    total_loss = (l_forget + alpha * l_retain + repnoise_loss_val) / gradient_accumulation_steps
+                    # Add RepNoise to the loss and apply balance_alpha to retain loss
+                    total_loss = (uniform_ce_forget + balance_alpha * ce_loss_retain + repnoise_loss) / gradient_accumulation_steps
                 else:
-                    # Original loss calculation when RepNoise is disabled
-                    total_loss = (l_forget + alpha * l_retain) / gradient_accumulation_steps
+                    # Apply balance_alpha to the retain loss
+                    total_loss = (uniform_ce_forget + balance_alpha * ce_loss_retain) / gradient_accumulation_steps
 
-                # Token counting
+                # Count tokens
                 tokens_forget = forget_batch["attention_mask"].sum().detach()
                 tokens_forget = accelerator.gather(tokens_forget).sum().item()
                 tokens_retain = retain_batch["attention_mask"].sum().detach()
                 tokens_retain = accelerator.gather(tokens_retain).sum().item()
                 global_tokens += (tokens_forget + tokens_retain)
-
             else:
-                # No retain data => purely forget
-                total_loss = l_forget / gradient_accumulation_steps
+                total_loss = uniform_ce_forget / gradient_accumulation_steps
                 tokens_this_batch = forget_batch["attention_mask"].sum().detach()
                 tokens_this_batch = accelerator.gather(tokens_this_batch).sum().item()
                 global_tokens += tokens_this_batch
 
-            # SAM Update - only if SAM is enabled and we're doing a full update
-            if use_sam and ga_gd and (step_in_epoch + 1) % gradient_accumulation_steps == 0:
-                # Step 1: Compute and save gradients
-                accelerator.backward(total_loss)
+            # If SAM is enabled and we're at an update step
+            if use_sam and use_retain and (step_in_epoch + 1) % gradient_accumulation_steps == 0:
+                # Step 1: Compute perturbation from current loss
+                perturbation = compute_sam_perturbation(model, total_loss, sam_rho)
                 
-                forget_grads = []
-                for p in param_list:
-                    if p.grad is not None:
-                        forget_grads.append(p.grad.detach().clone())
-                    else:
-                        forget_grads.append(None)
+                # Step 2: Apply perturbation
+                apply_perturbation(perturbation, apply=True)
                 
-                # Step 2: Calculate perturbation direction and magnitude
-                # Compute gradient norm for scaling
-                valid_grads = [g for g in forget_grads if g is not None]
-                if valid_grads:
-                    grad_norm = torch.stack([g.norm(2) for g in valid_grads]).norm(2)
-                    
-                    # Apply perturbation to parameters
-                    with torch.no_grad():
-                        for i, (param, grad) in enumerate(zip(param_list, forget_grads)):
-                            if grad is not None:
-                                # ε = ρ * g / ||g||
-                                eps = grad * (sam_rho / (grad_norm + 1e-12))
-                                param.add_(eps)
+                # Step 3: Zero gradients before computing loss with perturbed model
+                model.zero_grad()
                 
-                    # Step 3: Recompute forward pass on perturbed model
-                    # Recompute loss with perturbed parameters
-                    model.zero_grad()
-                    
-                    # Recompute forget loss
-                    outputs_forget_perturbed = model(
-                        input_ids=forget_batch["input_ids"],
-                        attention_mask=forget_batch["attention_mask"],
-                        output_hidden_states=True
+                # Step 4: Recompute forget loss on perturbed model
+                outputs_forget_perturbed = model(
+                    input_ids=forget_batch["input_ids"],
+                    attention_mask=forget_batch["attention_mask"]
+                )
+                uniform_ce_forget_perturbed = uniform_forget_loss_fn(
+                    outputs_forget_perturbed.logits,
+                    forget_batch["input_ids"],
+                    tokenizer.pad_token_id,
+                    loss_mask=forget_batch.get("loss_mask")
+                )
+                
+                # Step 5: Recompute retain loss on perturbed model
+                outputs_retain_perturbed = model(
+                    input_ids=retain_batch["input_ids"],
+                    attention_mask=retain_batch["attention_mask"]
+                )
+                ce_loss_retain_perturbed = cross_entropy_loss_fn(
+                    outputs_retain_perturbed.logits,
+                    retain_batch["input_ids"],
+                    tokenizer.pad_token_id,
+                    loss_mask=retain_batch.get("loss_mask")
+                )
+                
+                # Step 6: Recalculate total loss with perturbed parameters and apply balance_alpha
+                if use_repnoise:
+                    repnoise_loss_perturbed = rep_noise_loss(
+                        model=model,
+                        harmful_batch=forget_batch,
+                        harmless_batch=retain_batch,
+                        beta=repnoise_beta,
+                        alpha=repnoise_alpha
                     )
-                    forget_hidden_perturbed = outputs_forget_perturbed.hidden_states[end_layer]
-                    l_forget_perturbed = mse_loss_fn(forget_hidden_perturbed, distractor)
-                    
-                    # Recompute retain loss
-                    new_outputs_perturbed = model(
-                        input_ids=retain_batch["input_ids"],
-                        attention_mask=retain_batch["attention_mask"],
-                        output_hidden_states=True
-                    )
-                    new_hidden_perturbed = new_outputs_perturbed.hidden_states[end_layer]
-                    l_retain_perturbed = mse_loss_fn(new_hidden_perturbed, fro_hidden)
-                    
-                    # Recalculate total loss with perturbed parameters
-                    if use_repnoise:
-                        repnoise_loss_perturbed = rep_noise_loss(
-                            model=model,
-                            harmful_batch=forget_batch,
-                            harmless_batch=retain_batch,
-                            beta=repnoise_beta,
-                            alpha=repnoise_alpha
-                        )
-                        total_loss_perturbed = (l_forget_perturbed + alpha * l_retain_perturbed + repnoise_loss_perturbed) / gradient_accumulation_steps
-                    else:
-                        total_loss_perturbed = (l_forget_perturbed + alpha * l_retain_perturbed) / gradient_accumulation_steps
-                    
-                    # Step 4: Compute gradients on perturbed model
-                    accelerator.backward(total_loss_perturbed)
-                    
-                    # Step 5: Restore original parameters
-                    with torch.no_grad():
-                        for param, orig_param in zip(param_list, original_params):
-                            param.copy_(orig_param)
+                    total_loss_perturbed = (uniform_ce_forget_perturbed + balance_alpha * ce_loss_retain_perturbed + repnoise_loss_perturbed) / gradient_accumulation_steps
+                else:
+                    total_loss_perturbed = (uniform_ce_forget_perturbed + balance_alpha * ce_loss_retain_perturbed) / gradient_accumulation_steps
                 
-                # Optimizer step with gradients computed on perturbed model
+                # Step 7: Compute gradients at perturbed position
+                accelerator.backward(total_loss_perturbed)
+                
+                # Step 8: Remove perturbation to restore original parameters
+                apply_perturbation(perturbation, apply=False)
+                
+                # Step 9: Apply optimizer step with SAM gradients
                 accelerator.clip_grad_norm_(model.parameters(), gradient_clipping_threshold)
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
-            
-            # Standard backprop for non-SAM or non-update step cases
             else:
-                # Backprop
+                # Standard backprop for non-SAM or non-update steps
                 accelerator.backward(total_loss)
-
+                
                 if (step_in_epoch + 1) % gradient_accumulation_steps == 0:
                     accelerator.clip_grad_norm_(model.parameters(), gradient_clipping_threshold)
                     optimizer.step()
@@ -486,43 +427,37 @@ def unlearn_rmu(
                     optimizer.zero_grad()
                     global_step += 1
 
-            # Logging
+            # Logging every few steps (after parameter updates)
             if global_step > 0 and (global_step == 1 or global_step % 5 == 0):
-                features_enabled = []
-                if ga_gd:
-                    features_enabled.append("Retain")
-                if use_repnoise:
-                    features_enabled.append("RepNoise")
-                if use_sam:
-                    features_enabled.append("SAM")
-                features_str = "+".join(features_enabled) if features_enabled else ""
-                
                 msg = (
-                    f"[rmu.py] Epoch {epoch+1}/{epochs}, "
-                    f"Step {global_step}/{total_steps}, RMU{'+'+features_str if features_str else ''} "
-                    f"=> l_forget: {l_forget:.6f}"
+                    f"[maxent.py] Epoch {epoch+1}/{epochs}, Step {global_step}/{total_steps}, "
+                    f"Uniform-Forget => CE_forget(uniform): {uniform_ce_forget:.6f}"
                 )
                 print_acc(msg, print_message)
-                if ga_gd and retain_loader_iter is not None:
-                    print_acc(f"[rmu.py] l_retain: {l_retain:.6f}", print_message)
-                if use_repnoise:
-                    print_acc(f"[rmu.py] RepNoise Loss: {repnoise_loss_val:.6f}", print_message)
-                if use_sam:
-                    print_acc(f"[rmu.py] SAM enabled with rho={sam_rho}", print_message)
 
                 train_log_dict = {
-                    "train/l_forget": l_forget.item(),
+                    "train/uf_loss_forget": uniform_ce_forget.item(),
                     "train/step": global_step,
                     "train/tokens_seen": global_tokens,
                     "train/lr": scheduler.get_last_lr()[0],
                 }
-                if ga_gd and retain_loader_iter is not None:
-                    train_log_dict["train/l_retain"] = l_retain.item()
-                if use_repnoise:
-                    train_log_dict["train/repnoise_loss"] = repnoise_loss_val.item()
-                if use_sam:
-                    train_log_dict["train/sam_enabled"] = True
-                    train_log_dict["train/sam_rho"] = sam_rho
+
+                if use_retain and retain_loader_iter is not None:
+                    train_log_dict["train/ce_loss_retain"] = ce_loss_retain.item()
+                    train_log_dict["train/balance_alpha"] = balance_alpha
+                    train_log_dict["train/weighted_ce_loss_retain"] = (balance_alpha * ce_loss_retain).item()
+                    print_acc(f"[maxent.py] Retain CE: {ce_loss_retain:.6f} (weighted: {balance_alpha * ce_loss_retain:.6f})", print_message)
+                    
+                    # Log RepNoise loss if enabled
+                    if use_repnoise:
+                        train_log_dict["train/repnoise_loss"] = repnoise_loss.item()
+                        print_acc(f"[maxent.py] RepNoise Loss: {repnoise_loss:.6f}", print_message)
+                        
+                    # Log SAM info if enabled
+                    if use_sam:
+                        train_log_dict["train/sam_enabled"] = True
+                        train_log_dict["train/sam_rho"] = sam_rho
+                        print_acc(f"[maxent.py] SAM enabled with rho={sam_rho}", print_message)
 
                 if use_wandb and accelerator.is_main_process:
                     wandb.log(train_log_dict)
@@ -530,11 +465,10 @@ def unlearn_rmu(
                     with open(path_local_record, "a", encoding="utf-8") as f:
                         f.write(json.dumps(train_log_dict) + "\n")
 
-                # Validation (like in GA script)
-                # if it's the first step of modulo of validation steps or the last
+                # Validation
+                # (Perform if first step, or modulo validation_steps or last step)
                 if global_step == 1 or global_step % validation_steps == 0 or (max_steps > 0 and global_step >= max_steps):
-                    print_acc("[rmu.py] Running validation ...", print_message)
-                    
+                    print_acc("[maxent.py] Running validation ...", print_message)
                     val_log_dict = eval_fn(model, print_results=True)
                     val_log_dict["train/step"] = global_step
                     val_log_dict["train/tokens_seen"] = global_tokens
@@ -546,14 +480,14 @@ def unlearn_rmu(
 
                 # Check max steps
                 if max_steps > 0 and global_step >= max_steps:
-                    print_acc("[rmu.py] Reached max_steps => Stopping.", print_message)
+                    print_acc("[maxent.py] Reached max_steps => Stopping.", print_message)
                     break
 
         if max_steps > 0 and global_step >= max_steps:
             break
 
     # Final validation after all training
-    print_acc("[rmu.py] Running final validation after training completion...", print_message)
+    print_acc("[maxent.py] Running final validation after training completion...", print_message)
     final_val_log_dict = eval_fn(model, print_results=True)
     final_val_log_dict["train/step"] = global_step
     final_val_log_dict["train/tokens_seen"] = global_tokens
@@ -572,4 +506,49 @@ def unlearn_rmu(
         save_path = os.path.join(output_dir, "final_model")
         unwrapped_model.save_pretrained(save_path)
         tokenizer.save_pretrained(save_path)
-        print_acc(f"[rmu.py] Model saved to => {save_path}", print_message)
+        print_acc(f"[maxent.py] Model saved to => {save_path}", print_message)
+
+# ----------------------------------------------------------------
+# Helper functions
+# ----------------------------------------------------------------
+def uniform_forget_loss_fn(logits, input_ids, pad_token_id, loss_mask=None):
+    """
+    Replaces the uniform cross-entropy with a forward KL approach using teacher_logits=all ones.
+    Minimizing this forward KL forces the model to match a uniform teacher distribution.
+    """
+    import torch.nn.functional as F
+
+    # 1) Shift for next-token prediction
+    # shape => [batch, seq_len-1, vocab_size]
+    student_logits = logits[..., :-1, :].contiguous()
+
+    # 2) Teacher logits => all ones => uniform after softmax
+    teacher_logits = torch.ones_like(student_logits)  # same shape
+
+    # 3) Convert teacher + student to log probs
+    #    forward KL = sum p_teacher(log p_teacher - log p_student)
+    #    where p_teacher = softmax(teacher_logits)
+    teacher_log_probs = F.log_softmax(teacher_logits, dim=-1)
+    teacher_probs = teacher_log_probs.exp()
+    student_log_probs = F.log_softmax(student_logits, dim=-1)
+
+    # 4) We'll ignore padded positions. Shift input_ids as well => next token
+    shift_labels = input_ids[..., 1:].contiguous()     # [batch, seq_len-1]
+    valid_mask = (shift_labels != pad_token_id)
+    
+    # 5) forward KL per position = sum_over_vocab [ p_teacher(v) * (log p_teacher(v) - log p_student(v)) ]
+    kl_per_position = teacher_probs * (teacher_log_probs - student_log_probs)
+    kl_per_position = kl_per_position.sum(dim=-1)  # sum over vocab => shape [batch, seq_len-1]
+
+    # 6) Mask out invalid positions
+    kl_per_position = kl_per_position * valid_mask
+
+    # 7) If there is a loss maks, apply mask (ei mask out question)
+    if loss_mask is not None:
+        kl_per_position *= loss_mask
+
+    # 8) Average over valid positions
+    denom = valid_mask.sum().clamp(min=1)
+    kl = kl_per_position.sum() / denom
+
+    return kl

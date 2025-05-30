@@ -5,7 +5,7 @@ import json
 import torch
 from torch.utils.data import DataLoader
 from torch.nn import MSELoss
-from datasets import load_dataset, interleave_datasets
+from datasets import load_dataset
 from accelerate import Accelerator
 from transformers import (
     AutoConfig,
@@ -14,16 +14,16 @@ from transformers import (
     DataCollatorWithPadding
 )
 import wandb
-from code.utils.process_datasets import make_sequence_length
-from code.utils.loss_functions import print_acc, custom_makedirs
+from src.utils.process_datasets import make_sequence_length
+from src.utils.loss_functions import print_acc
+
+# Import RepNoise components
+from src.utils.repnoise_loss import rep_noise_loss, register_activation_hook, MMD_loss
 
 def unlearn_rmu(
     model_name,
     forget_train_file,
-    retain_files,
-    interleave_probs,
-    stopping_strategy,
-    
+    retain_train_file,
     eval_fn,
     accelerator,
     output_dir,
@@ -58,20 +58,41 @@ def unlearn_rmu(
     use_wandb,
     wandb_project,
     wandb_run_name,
+    wandb_api_key,
 
     use_local_record,
     path_local_record,
-    overwrite_ok,
+    
+    # RepNoise parameters
+    use_repnoise=False,         # Option to turn RepNoise on/off
+    repnoise_alpha=1.0,         # Alpha parameter for RepNoise loss
+    repnoise_beta=0.001,        # Beta parameter for RepNoise loss
+    
+    # SAM parameters
+    use_sam=False,              # Option to turn SAM on/off
+    sam_rho=0.05,               # Rho parameter (perturbation size) for SAM
 ):
     """
     RMU script in the same style as the GA script:
       - freeze all layers except MLP down_proj in `rmu_layers`
       - on 'forget' data: push hidden states at `end_layer` to a random 'distractor'
       - on 'retain' data (if ga_gd=True): push hidden states to match the original (frozen) model
+    
+    Additional options:
+      - RepNoise: Add representation noising for robust unlearning
+      - SAM: Use Sharpness-Aware Minimization for more robust unlearning
     """
-    assert 0 < alpha < 1
     print_message = accelerator.is_main_process
-    torch.set_default_dtype(torch.bfloat16)
+
+    # Validate RepNoise settings
+    if use_repnoise and (not ga_gd or not retain_train_file.strip()):
+        print_acc("[rmu.py] WARNING: RepNoise requires both forget and retain datasets. Disabling RepNoise.", print_message)
+        use_repnoise = False
+    
+    # Validate SAM settings
+    if use_sam and (not ga_gd or not retain_train_file.strip()):
+        print_acc("[rmu.py] WARNING: SAM requires both forget and retain datasets. Disabling SAM.", print_message)
+        use_sam = False
 
     train_args = {**locals()}
     print_acc(f"[rmu.py] Initiated RMU training with:\n{train_args}", print_message)
@@ -79,15 +100,17 @@ def unlearn_rmu(
     # ----------------------------------------------------------------
     # Setup: seeds, directories, W&B, local record
     # ----------------------------------------------------------------
-    custom_makedirs(output_dir, exist_ok=overwrite_ok)
+    os.makedirs(output_dir, exist_ok=True)
     random.seed(seed)
     torch.manual_seed(seed)
 
     if use_wandb and accelerator.is_main_process:
+        wandb.login(key=wandb_api_key)
         wandb.init(project=wandb_project, name=wandb_run_name, config=train_args)
 
     if use_local_record and accelerator.is_main_process:
-        custom_makedirs(path_local_record, exist_ok=overwrite_ok)
+        local_dir = os.path.dirname(path_local_record)
+        os.makedirs(local_dir, exist_ok=True)
 
     # ----------------------------------------------------------------
     # Load model + tokenizer
@@ -98,8 +121,7 @@ def unlearn_rmu(
         model_name,
         cache_dir=cache_dir,
         attn_implementation='eager',
-        output_hidden_states=True, # we need the hidden states
-        torch_dtype = torch.bfloat16
+        output_hidden_states=True  # we need the hidden states
     )
 
     # Frozen model for reference
@@ -107,8 +129,7 @@ def unlearn_rmu(
         model_name,
         cache_dir=cache_dir,
         attn_implementation='eager',
-        output_hidden_states=True,
-        torch_dtype = torch.bfloat16
+        output_hidden_states=True
     )
     frozen_model.eval()
 
@@ -165,38 +186,27 @@ def unlearn_rmu(
     )
 
     # ----------------------------------------------------------------
-    # Load RETAIN dataset (Used only if ga_gd=True => "RMU + preserve")
+    # Load RETAIN dataset (Used for ga_gd, RepNoise, and SAM)
     # ----------------------------------------------------------------
-    if ga_gd and len(retain_files) > 0:
+    if ga_gd and retain_train_file.strip():
         print_acc("[rmu.py] => RMU + Retain => loading 'retain' dataset", print_message)
-        retain_ds_list = []
-        for file in retain_files:
-            print_acc(f"[rmu.py] Loading train dataset from {file}", print_message)
-            retain_ds = load_dataset("json", data_files=file, split="train", cache_dir=dataset_cache_dir)
-            retain_ds_list.append(retain_ds)
+        retain_ds = load_dataset(
+            "json",
+            data_files=retain_train_file,
+            split="train",
+            cache_dir=dataset_cache_dir
+        )
+        print_acc(f"[rmu.py] Retain dataset size: {len(retain_ds)}", print_message)
+        sample_text_r = retain_ds[0]["text"].replace('\n', ' ')
+        print_acc(f'[rmu.py] Sample retain text: "{sample_text_r[:200]}..."', print_message)
         # ------------------------------------------------------------
         # Process for sequence length
         # If join_or_subsequence, form sequences of exactly max_length by joining multiple or using subsequences
         # else filter for only those less than max_length
         # ------------------------------------------------------------
-        retain_ds_list, message = make_sequence_length(train_ds_list=retain_ds_list, tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
+        train_ds_list, message = make_sequence_length(train_ds_list=[retain_ds], tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
         print_acc(message, print_message)
-        # Interleave dataset
-        if len(retain_ds_list) == 0:
-            raise ValueError("No training dataset provided!")
-        elif len(retain_ds_list) == 1:
-            retain_ds = retain_ds_list[0]
-        else:
-            print_acc(f"[rmu.py] Interleaving with probabilities: {interleave_probs}", print_message)
-            retain_ds = interleave_datasets(retain_ds_list, probabilities=interleave_probs, seed=seed, stopping_strategy=stopping_strategy)
-
-        # Print size and samples
-        print_acc(f"[rmu.py] Train dataset size: {len(retain_ds)}", print_message)
-        for i in range(3): 
-            sample_ids = retain_ds[i]["input_ids"]
-            sample_text = tokenizer.decode(sample_ids, skip_special_tokens=False)
-            print_acc(f'[rmu.py] Sample distillation dataset text {i}: "{sample_text[:200]}..."', print_message)
-
+        retain_ds = train_ds_list[0]
         retain_loader = DataLoader(
             retain_ds,
             batch_size=batch_size,
@@ -280,15 +290,15 @@ def unlearn_rmu(
     print_acc("[rmu.py] Starting RMU training", print_message)
 
     # Initial validation before training
-    # print_acc("[rmu.py] Running initial validation before training...", print_message)
-    # initial_val_log_dict = eval_fn(model, print_results=True)
-    # initial_val_log_dict["train/step"] = 0
-    # initial_val_log_dict["train/tokens_seen"] = 0
-    # if use_wandb and accelerator.is_main_process:
-    #     wandb.log(initial_val_log_dict)
-    # if use_local_record and accelerator.is_main_process:
-    #     with open(path_local_record, "a", encoding="utf-8") as f:
-    #         f.write(json.dumps(initial_val_log_dict) + "\n")
+    print_acc("[rmu.py] Running initial validation before training...", print_message)
+    initial_val_log_dict = eval_fn(model, print_results=True)
+    initial_val_log_dict["train/step"] = 0
+    initial_val_log_dict["train/tokens_seen"] = 0
+    if use_wandb and accelerator.is_main_process:
+        wandb.log(initial_val_log_dict)
+    if use_local_record and accelerator.is_main_process:
+        with open(path_local_record, "a", encoding="utf-8") as f:
+            f.write(json.dumps(initial_val_log_dict) + "\n")
 
     global_step = 0
     global_tokens = 0
@@ -302,6 +312,12 @@ def unlearn_rmu(
         frozen_model.eval()
 
         for step_in_epoch in range(steps_per_epoch):
+            # Initialize SAM variables if SAM is enabled
+            if use_sam:
+                # Store original parameters for later restoration
+                param_list = [p for p in model.parameters() if p.requires_grad]
+                original_params = [p.data.clone() for p in param_list]
+
             # 1) Get forget batch
             try:
                 forget_batch = next(forget_loader_iter)
@@ -351,8 +367,22 @@ def unlearn_rmu(
                 new_hidden = new_outputs.hidden_states[end_layer]
 
                 l_retain = mse_loss_fn(new_hidden, fro_hidden)
-
-                total_loss = (((1 - alpha) * l_forget) + (alpha * l_retain)) / gradient_accumulation_steps
+                
+                # If RepNoise is enabled and we have both forget and retain batches
+                if use_repnoise:
+                    # Map forget_batch -> harmful_batch, retain_batch -> harmless_batch
+                    repnoise_loss_val = rep_noise_loss(
+                        model=model,
+                        harmful_batch=forget_batch,
+                        harmless_batch=retain_batch,
+                        beta=repnoise_beta,
+                        alpha=repnoise_alpha
+                    )
+                    # Add RepNoise to the loss
+                    total_loss = (l_forget + alpha * l_retain + repnoise_loss_val) / gradient_accumulation_steps
+                else:
+                    # Original loss calculation when RepNoise is disabled
+                    total_loss = (l_forget + alpha * l_retain) / gradient_accumulation_steps
 
                 # Token counting
                 tokens_forget = forget_batch["attention_mask"].sum().detach()
@@ -368,26 +398,117 @@ def unlearn_rmu(
                 tokens_this_batch = accelerator.gather(tokens_this_batch).sum().item()
                 global_tokens += tokens_this_batch
 
-            # Backprop
-            accelerator.backward(total_loss)
-
-            if (step_in_epoch + 1) % gradient_accumulation_steps == 0:
+            # SAM Update - only if SAM is enabled and we're doing a full update
+            if use_sam and ga_gd and (step_in_epoch + 1) % gradient_accumulation_steps == 0:
+                # Step 1: Compute and save gradients
+                accelerator.backward(total_loss)
+                
+                forget_grads = []
+                for p in param_list:
+                    if p.grad is not None:
+                        forget_grads.append(p.grad.detach().clone())
+                    else:
+                        forget_grads.append(None)
+                
+                # Step 2: Calculate perturbation direction and magnitude
+                # Compute gradient norm for scaling
+                valid_grads = [g for g in forget_grads if g is not None]
+                if valid_grads:
+                    grad_norm = torch.stack([g.norm(2) for g in valid_grads]).norm(2)
+                    
+                    # Apply perturbation to parameters
+                    with torch.no_grad():
+                        for i, (param, grad) in enumerate(zip(param_list, forget_grads)):
+                            if grad is not None:
+                                # ε = ρ * g / ||g||
+                                eps = grad * (sam_rho / (grad_norm + 1e-12))
+                                param.add_(eps)
+                
+                    # Step 3: Recompute forward pass on perturbed model
+                    # Recompute loss with perturbed parameters
+                    model.zero_grad()
+                    
+                    # Recompute forget loss
+                    outputs_forget_perturbed = model(
+                        input_ids=forget_batch["input_ids"],
+                        attention_mask=forget_batch["attention_mask"],
+                        output_hidden_states=True
+                    )
+                    forget_hidden_perturbed = outputs_forget_perturbed.hidden_states[end_layer]
+                    l_forget_perturbed = mse_loss_fn(forget_hidden_perturbed, distractor)
+                    
+                    # Recompute retain loss
+                    new_outputs_perturbed = model(
+                        input_ids=retain_batch["input_ids"],
+                        attention_mask=retain_batch["attention_mask"],
+                        output_hidden_states=True
+                    )
+                    new_hidden_perturbed = new_outputs_perturbed.hidden_states[end_layer]
+                    l_retain_perturbed = mse_loss_fn(new_hidden_perturbed, fro_hidden)
+                    
+                    # Recalculate total loss with perturbed parameters
+                    if use_repnoise:
+                        repnoise_loss_perturbed = rep_noise_loss(
+                            model=model,
+                            harmful_batch=forget_batch,
+                            harmless_batch=retain_batch,
+                            beta=repnoise_beta,
+                            alpha=repnoise_alpha
+                        )
+                        total_loss_perturbed = (l_forget_perturbed + alpha * l_retain_perturbed + repnoise_loss_perturbed) / gradient_accumulation_steps
+                    else:
+                        total_loss_perturbed = (l_forget_perturbed + alpha * l_retain_perturbed) / gradient_accumulation_steps
+                    
+                    # Step 4: Compute gradients on perturbed model
+                    accelerator.backward(total_loss_perturbed)
+                    
+                    # Step 5: Restore original parameters
+                    with torch.no_grad():
+                        for param, orig_param in zip(param_list, original_params):
+                            param.copy_(orig_param)
+                
+                # Optimizer step with gradients computed on perturbed model
                 accelerator.clip_grad_norm_(model.parameters(), gradient_clipping_threshold)
                 optimizer.step()
                 scheduler.step()
                 optimizer.zero_grad()
                 global_step += 1
+            
+            # Standard backprop for non-SAM or non-update step cases
+            else:
+                # Backprop
+                accelerator.backward(total_loss)
 
-                # Logging
-                if global_step == 1 or global_step % 5 == 0:
-                    msg = (
-                        f"[rmu.py] Epoch {epoch+1}/{epochs}, "
-                        f"Step {global_step}/{total_steps}, RMU{'+Retain' if ga_gd else ''} "
-                        f"=> l_forget: {l_forget:.6f}"
-                    )
-                    print_acc(msg, print_message)
-                    if ga_gd and retain_loader_iter is not None:
-                        print_acc(f"[rmu.py] l_retain: {l_retain:.6f}", print_message)
+                if (step_in_epoch + 1) % gradient_accumulation_steps == 0:
+                    accelerator.clip_grad_norm_(model.parameters(), gradient_clipping_threshold)
+                    optimizer.step()
+                    scheduler.step()
+                    optimizer.zero_grad()
+                    global_step += 1
+
+            # Logging
+            if global_step > 0 and (global_step == 1 or global_step % 5 == 0):
+                features_enabled = []
+                if ga_gd:
+                    features_enabled.append("Retain")
+                if use_repnoise:
+                    features_enabled.append("RepNoise")
+                if use_sam:
+                    features_enabled.append("SAM")
+                features_str = "+".join(features_enabled) if features_enabled else ""
+                
+                msg = (
+                    f"[rmu.py] Epoch {epoch+1}/{epochs}, "
+                    f"Step {global_step}/{total_steps}, RMU{'+'+features_str if features_str else ''} "
+                    f"=> l_forget: {l_forget:.6f}"
+                )
+                print_acc(msg, print_message)
+                if ga_gd and retain_loader_iter is not None:
+                    print_acc(f"[rmu.py] l_retain: {l_retain:.6f}", print_message)
+                if use_repnoise:
+                    print_acc(f"[rmu.py] RepNoise Loss: {repnoise_loss_val:.6f}", print_message)
+                if use_sam:
+                    print_acc(f"[rmu.py] SAM enabled with rho={sam_rho}", print_message)
 
                 train_log_dict = {
                     "train/l_forget": l_forget.item(),
@@ -397,6 +518,11 @@ def unlearn_rmu(
                 }
                 if ga_gd and retain_loader_iter is not None:
                     train_log_dict["train/l_retain"] = l_retain.item()
+                if use_repnoise:
+                    train_log_dict["train/repnoise_loss"] = repnoise_loss_val.item()
+                if use_sam:
+                    train_log_dict["train/sam_enabled"] = True
+                    train_log_dict["train/sam_rho"] = sam_rho
 
                 if use_wandb and accelerator.is_main_process:
                     wandb.log(train_log_dict)
@@ -406,7 +532,7 @@ def unlearn_rmu(
 
                 # Validation (like in GA script)
                 # if it's the first step of modulo of validation steps or the last
-                if global_step % validation_steps == 0:
+                if global_step == 1 or global_step % validation_steps == 0 or (max_steps > 0 and global_step >= max_steps):
                     print_acc("[rmu.py] Running validation ...", print_message)
                     
                     val_log_dict = eval_fn(model, print_results=True)
@@ -447,4 +573,3 @@ def unlearn_rmu(
         unwrapped_model.save_pretrained(save_path)
         tokenizer.save_pretrained(save_path)
         print_acc(f"[rmu.py] Model saved to => {save_path}", print_message)
-        wandb.finish()

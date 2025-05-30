@@ -1,8 +1,8 @@
-from code.tools.relearn_wmdp import relearn
-from code.utils.paths import CACHE_DIR, DATASET_DIR, WMDP_MODEL_DIR
+from src.tools.relearn_wmdp import relearn
+from src.utils.paths import CACHE_DIR, DATASET_DIR, WMDP_MODEL_DIR
 from accelerate import Accelerator
 from utils.loss_functions import custom_login
-from code.utils.validation_functions import get_wmdp_cyber_eval_fn, get_wmdp_bio_eval_fn, get_both_wmdp_eval_fn, get_loss_eval_fn
+from src.utils.validation_functions import get_wmdp_cyber_eval_fn, get_wmdp_bio_eval_fn, get_both_wmdp_eval_fn, get_loss_eval_fn
 from utils.parallel_launch import launch_in_parallel_one_per_gpu, get_parallel_launch_wrapper
 
 FINAL_RUN = True

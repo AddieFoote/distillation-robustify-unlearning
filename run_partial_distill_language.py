@@ -5,11 +5,11 @@ Launch Command (Sweep): python run_partial_distill_language_sweep_alpha.py --run
 Launch Command (Single): accelerate launch run_partial_distill_language_sweep_alpha.py --setup gemma-2-0.1B_MaxEnt --alpha 0.3 --beta 0.1
 """
 
-from code.tools.partial_distill_langarith import partial_distill
-from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
+from src.tools.partial_distill_langarith import partial_distill
+from src.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
 from accelerate import Accelerator
 from utils.loss_functions import print_acc, custom_login
-from code.utils.validation_functions import get_korean_and_english_evalaution_fn
+from src.utils.validation_functions import get_korean_and_english_evalaution_fn
 from utils.parallel_launch import launch_in_parallel_one_per_gpu, get_parallel_launch_wrapper
 import argparse
 import subprocess

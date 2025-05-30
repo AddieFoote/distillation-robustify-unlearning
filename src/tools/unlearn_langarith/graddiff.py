@@ -17,8 +17,8 @@ import wandb
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from code.utils.process_datasets import make_sequence_length
-from code.utils.loss_functions import cross_entropy_loss_fn, print_acc
+from src.utils.process_datasets import make_sequence_length
+from src.utils.loss_functions import cross_entropy_loss_fn, print_acc
 
 
 def unlearn_graddiff(

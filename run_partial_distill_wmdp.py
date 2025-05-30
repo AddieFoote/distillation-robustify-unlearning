@@ -1,5 +1,5 @@
-from code.tools.partial_distill import partial_distill
-from code.utils.paths import CACHE_DIR, DATASET_DIR, WMDP_MODEL_DIR
+from src.tools.partial_distill import partial_distill
+from src.utils.paths import CACHE_DIR, DATASET_DIR, WMDP_MODEL_DIR
 from accelerate import Accelerator
 from utils.loss_functions import print_acc, custom_login
 from utils.validation_functions import get_wmdp_cyber_eval_fn, get_wmdp_bio_eval_fn, get_both_wmdp_eval_fn

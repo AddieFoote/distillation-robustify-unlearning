@@ -4,8 +4,8 @@ Configured for a (any)xH100/H200/A100 GPU server.
 Launch Command: python run_partial_distill_arithmetic.py --run_all
 """
 
-from code.tools.partial_distill_langarith import partial_distill
-from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR
+from src.tools.partial_distill_langarith import partial_distill
+from src.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR
 from accelerate import Accelerator
 from utils.loss_functions import print_acc, custom_login
 from utils.validation_functions import get_arithmetic_eval_fn

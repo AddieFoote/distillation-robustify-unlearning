@@ -5,7 +5,7 @@ import json
 import torch
 from torch.utils.data import DataLoader
 from torch.nn import CrossEntropyLoss
-from datasets import load_dataset
+from datasets import load_dataset, interleave_datasets
 from accelerate import Accelerator
 from transformers import (
     AutoConfig,
@@ -17,19 +17,23 @@ import wandb
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-from code.utils.process_datasets import make_sequence_length
-from code.utils.loss_functions import cross_entropy_loss_fn, print_acc
+from src.utils.process_datasets import make_sequence_length
+from src.utils.loss_functions import cross_entropy_loss_fn, forward_kl_loss_fn, print_acc, custom_makedirs
 
 # Import RepNoise components
-from code.utils.repnoise_loss import rep_noise_loss, register_activation_hook, MMD_loss
+from src.utils.repnoise_loss import rep_noise_loss, register_activation_hook, MMD_loss
 
 # Import SAM utilities
-from code.utils.sam_utils import compute_sam_perturbation, apply_perturbation
+from src.utils.sam_utils import compute_sam_perturbation, apply_perturbation
+
 
 def unlearn_maxent(
     model_name,
     forget_train_file,
-    retain_train_file,
+    retain_files,
+    interleave_probs,
+    stopping_strategy,
+
     eval_fn,
     accelerator,
     output_dir,
@@ -38,6 +42,8 @@ def unlearn_maxent(
     join_or_subsequence,
 
     use_retain,
+    use_retain_kl,
+    alpha,
     
     seed,
     device,
@@ -58,22 +64,17 @@ def unlearn_maxent(
     use_wandb,
     wandb_project,
     wandb_run_name,
-    wandb_api_key,
 
     use_local_record,
     path_local_record,
+    overwrite_ok,
 
-    # Add balance_alpha parameter to control the forget-retain trade-off for maxent
-    balance_alpha=1.0,
-
-    # RepNoise parameters
     use_repnoise=False,         # Option to turn RepNoise on/off
-    repnoise_beta=0.001,        # Beta parameter for RepNoise loss
+    repnoise_beta=1.0,        # Beta parameter for RepNoise loss
     repnoise_alpha=1.0,         # Alpha parameter for RepNoise loss
-    
-    # SAM parameters
+
     use_sam=False,              # Option to turn SAM on/off
-    sam_rho=0.05,               # Rho parameter (perturbation size) for SAM
+    sam_rho=0.01,               # Rho parameter (perturbation size) for SAM
 ):
     """
     Uniform Forget script using Accelerate on pretokenized JSONL datasets.
@@ -81,24 +82,10 @@ def unlearn_maxent(
     - "Forget" dataset => uniform_forget_loss_fn, i.e., push model logits to uniform 
       via forward KL with teacher_logits=ones.
     - "Retain" dataset (if use_retain=True) => normal cross-entropy (to preserve knowledge).
-    - RepNoise (if use_repnoise=True) => adds representation noising for more robust unlearning.
-    - SAM (if use_sam=True) => Sharpness-Aware Minimization for more robust unlearning.
-    - balance_alpha => Controls the balance between forget and retain losses.
-                      Higher values emphasize retain loss, lower values emphasize forget loss.
-                      Set to 0 to completely ignore retain loss.
     """
-    accelerator = Accelerator()
+    assert 0 < alpha < 1
     print_message = accelerator.is_main_process
-
-    # Validate RepNoise settings
-    if use_repnoise and (not use_retain or not retain_train_file.strip()):
-        print_acc("[maxent.py] WARNING: RepNoise requires both forget and retain datasets. Disabling RepNoise.", print_message)
-        use_repnoise = False
-    
-    # Validate SAM settings
-    if use_sam and (not use_retain or not retain_train_file.strip()):
-        print_acc("[maxent.py] WARNING: SAM requires both forget and retain datasets. Disabling SAM.", print_message)
-        use_sam = False
+    torch.set_default_dtype(torch.bfloat16)
 
     train_args = {**locals()}
     print_acc(f"[maxent.py] Initiated training with:\n{train_args}", print_message)
@@ -106,17 +93,15 @@ def unlearn_maxent(
     # ----------------------------------------------------------------
     # Setup: seeds, directories, W&B, local record
     # ----------------------------------------------------------------
-    os.makedirs(output_dir, exist_ok=True)
+    custom_makedirs(output_dir, exist_ok=overwrite_ok)
     random.seed(seed)
     torch.manual_seed(seed)
 
     if use_wandb and accelerator.is_main_process:
-        wandb.login(key=wandb_api_key)
         wandb.init(project=wandb_project, name=wandb_run_name, config=train_args)
 
     if use_local_record and accelerator.is_main_process:
-        local_dir = os.path.dirname(path_local_record)
-        os.makedirs(local_dir, exist_ok=True)
+        custom_makedirs(path_local_record, exist_ok=overwrite_ok)
 
     # ----------------------------------------------------------------
     # Load model + tokenizer
@@ -127,7 +112,7 @@ def unlearn_maxent(
         model_name,
         cache_dir=cache_dir,
         attn_implementation='eager',
-        torch_dtype=torch.bfloat16
+        torch_dtype = torch.bfloat16
     )
     tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
     if tokenizer.pad_token_id is None:
@@ -150,7 +135,7 @@ def unlearn_maxent(
         "json",
         data_files=forget_train_file,
         split="train",
-        cache_dir=dataset_cache_dir
+        cache_dir=dataset_cache_dir,
     )
     print_acc(f"[maxent.py] Forget dataset size: {len(forget_ds)}", print_message)
     sample_text = forget_ds[0]["text"].replace('\n', ' ')
@@ -168,37 +153,62 @@ def unlearn_maxent(
         forget_ds,
         batch_size=batch_size,
         shuffle=True,
-        collate_fn=DataCollatorWithPadding(tokenizer=tokenizer, padding="max_length", max_length=max_length)
+        collate_fn=DataCollatorWithPadding(tokenizer=tokenizer, padding="max_length", max_length=max_length),
+        drop_last=True
     )
 
     # ----------------------------------------------------------------
     # Load Retain Dataset (Used only if use_retain=True)
     # ----------------------------------------------------------------
-    if use_retain and retain_train_file.strip():
+    if use_retain and len(retain_files) > 0:
         print_acc("[maxent.py] => loading 'retain' dataset", print_message)
-        retain_ds = load_dataset(
-            "json",
-            data_files=retain_train_file,
-            split="train",
-            cache_dir=dataset_cache_dir
-        )
-        print_acc(f"[maxent.py] Retain dataset size: {len(retain_ds)}", print_message)
-        sample_text_r = retain_ds[0]["text"].replace('\n', ' ')
-        print_acc(f'[maxent.py] Sample retain text: "{sample_text_r[:200]}..."', print_message)
+
+        retain_ds_list = []
+        for file in retain_files:
+            print_acc(f"[maxent.py] Loading train dataset from {file}", print_message)
+            retain_ds = load_dataset("json", data_files=file, split="train", cache_dir=dataset_cache_dir)
+            retain_ds_list.append(retain_ds)
         # ------------------------------------------------------------
-        # Process for sequence length
-        # If join_or_subsequence, form sequences of exactly max_length by joining multiple or using subsequences
-        # else filter for only those less than max_length
+        # PROCESS FOR SEQUENCE LENGTH
+        # If join_or_subsequence, form sequences of exactly max_length 
+        # by joining multiple or using subsequences else filter for only those less than max_length
         # ------------------------------------------------------------
-        retain_ds_list, message = make_sequence_length(train_ds_list=[retain_ds], tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
+        retain_ds_list, message = make_sequence_length(train_ds_list=retain_ds_list, tokenizer=tokenizer, max_length=max_length, join_or_subsequence=join_or_subsequence)
         print_acc(message, print_message)
-        retain_ds = retain_ds_list[0]
+
+        # Interleave dataset
+        if len(retain_ds_list) == 0:
+            raise ValueError("No training dataset provided!")
+        elif len(retain_ds_list) == 1:
+            retain_ds = retain_ds_list[0]
+        else:
+            print_acc(f"[maxent.py] Interleaving with probabilities: {interleave_probs}", print_message)
+            retain_ds = interleave_datasets(retain_ds_list, probabilities=interleave_probs, seed=seed, stopping_strategy=stopping_strategy)
+
+        # Print size and samples
+        print_acc(f"[maxent.py] Train dataset size: {len(retain_ds)}", print_message)
+        for i in range(3): 
+            sample_ids = retain_ds[i]["input_ids"]
+            sample_text = tokenizer.decode(sample_ids, skip_special_tokens=False)
+            print_acc(f'[maxent.py] Sample distillation dataset text {i}: "{sample_text[:200]}..."', print_message)
+
         retain_loader = DataLoader(
             retain_ds,
             batch_size=batch_size,
             shuffle=True,
-            collate_fn=DataCollatorWithPadding(tokenizer=tokenizer, padding="max_length", max_length=max_length)
+            collate_fn=DataCollatorWithPadding(tokenizer=tokenizer, padding="max_length", max_length=max_length),
+            drop_last=True
         )
+        if use_retain_kl:
+            frozen_model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                cache_dir=cache_dir,
+                attn_implementation='eager',
+                torch_dtype = torch.bfloat16
+            )
+            # Freeze all parameters of the frozen model
+            for param in frozen_model.parameters():
+                param.requires_grad = False
     else:
         # either use_retain=False, or retain_train_file is empty => No "retain" data
         retain_loader = None
@@ -258,26 +268,24 @@ def unlearn_maxent(
     )
     if use_retain and retain_loader is not None:
         retain_loader = accelerator.prepare(retain_loader)
+    if use_retain_kl:
+        frozen_model = accelerator.prepare(frozen_model)
 
     # ----------------------------------------------------------------
     # Training loop
     # ----------------------------------------------------------------
     print_acc("[maxent.py] Starting training", print_message)
-    
-    # Log balance_alpha setting
-    if balance_alpha != 1.0:
-        print_acc(f"[maxent.py] Using balance_alpha={balance_alpha} to weight retain vs forget loss", print_message)
 
     # Initial validation before training
-    print_acc("[maxent.py] Running initial validation before training...", print_message)
-    initial_val_log_dict = eval_fn(model, print_results=True)
-    initial_val_log_dict["train/step"] = 0
-    initial_val_log_dict["train/tokens_seen"] = 0
-    if use_wandb and accelerator.is_main_process:
-        wandb.log(initial_val_log_dict)
-    if use_local_record and accelerator.is_main_process:
-        with open(path_local_record, "a", encoding="utf-8") as f:
-            f.write(json.dumps(initial_val_log_dict) + "\n")
+    # print_acc("[maxent.py] Running initial validation before training...", print_message)
+    # initial_val_log_dict = eval_fn(model, print_results=True)
+    # initial_val_log_dict["train/step"] = 0
+    # initial_val_log_dict["train/tokens_seen"] = 0
+    # if use_wandb and accelerator.is_main_process:
+    #     wandb.log(initial_val_log_dict)
+    # if use_local_record and accelerator.is_main_process:
+    #     with open(path_local_record, "a", encoding="utf-8") as f:
+    #         f.write(json.dumps(initial_val_log_dict) + "\n")
 
     global_step = 0
     global_tokens = 0
@@ -305,10 +313,9 @@ def unlearn_maxent(
             uniform_ce_forget = uniform_forget_loss_fn(
                 outputs_forget.logits,
                 forget_batch["input_ids"],
-                tokenizer.pad_token_id,
-                loss_mask = forget_batch.get("loss_mask")
+                tokenizer.pad_token_id
             )
-            
+
             # 2) If use_retain => also get retain batch (normal CE)
             if use_retain and retain_loader_iter is not None:
                 try:
@@ -321,14 +328,27 @@ def unlearn_maxent(
                     input_ids=retain_batch["input_ids"],
                     attention_mask=retain_batch["attention_mask"]
                 )
-                ce_loss_retain = cross_entropy_loss_fn(
-                    outputs_retain.logits,
-                    retain_batch["input_ids"],
-                    tokenizer.pad_token_id,
-                    loss_mask = retain_batch.get("loss_mask")
-                )
 
-                # If RepNoise is enabled and we have both forget and retain batches
+                if use_retain_kl:
+                    frozen_teacher_outputs = frozen_model(
+                        input_ids=retain_batch["input_ids"],
+                        attention_mask=retain_batch["attention_mask"]
+                    )
+                    loss_retain = forward_kl_loss_fn(
+                        frozen_teacher_outputs.logits,
+                        outputs_retain.logits,
+                        retain_batch["input_ids"],
+                        tokenizer.pad_token_id,
+                    )
+
+                else:
+                    # use retain CE loss 
+                    loss_retain = cross_entropy_loss_fn(
+                        outputs_retain.logits,
+                        retain_batch["input_ids"],
+                        tokenizer.pad_token_id
+                    )
+                
                 if use_repnoise:
                     # Map forget_batch -> harmful_batch, retain_batch -> harmless_batch
                     repnoise_loss = rep_noise_loss(
@@ -339,11 +359,10 @@ def unlearn_maxent(
                         alpha=repnoise_alpha
                     )
                     # Add RepNoise to the loss and apply balance_alpha to retain loss
-                    total_loss = (uniform_ce_forget + balance_alpha * ce_loss_retain + repnoise_loss) / gradient_accumulation_steps
+                    total_loss = ((uniform_ce_forget + repnoise_loss) *  (1 - alpha) + (alpha * loss_retain)) / gradient_accumulation_steps
                 else:
                     # Apply balance_alpha to the retain loss
-                    total_loss = (uniform_ce_forget + balance_alpha * ce_loss_retain) / gradient_accumulation_steps
-
+                    total_loss = ((uniform_ce_forget * (1 - alpha)) + (loss_retain * alpha)) / gradient_accumulation_steps
                 # Count tokens
                 tokens_forget = forget_batch["attention_mask"].sum().detach()
                 tokens_forget = accelerator.gather(tokens_forget).sum().item()
@@ -384,12 +403,27 @@ def unlearn_maxent(
                     input_ids=retain_batch["input_ids"],
                     attention_mask=retain_batch["attention_mask"]
                 )
-                ce_loss_retain_perturbed = cross_entropy_loss_fn(
-                    outputs_retain_perturbed.logits,
-                    retain_batch["input_ids"],
-                    tokenizer.pad_token_id,
-                    loss_mask=retain_batch.get("loss_mask")
-                )
+                if use_retain_kl:
+                    frozen_teacher_outputs = frozen_model(
+                        input_ids=retain_batch["input_ids"],
+                        attention_mask=retain_batch["attention_mask"]
+                    )
+                    loss_retain_perturbed = forward_kl_loss_fn(
+                        frozen_teacher_outputs.logits,
+                        outputs_retain_perturbed.logits,
+                        retain_batch["input_ids"],
+                        tokenizer.pad_token_id,
+                        loss_mask=retain_batch.get("loss_mask")
+                    )
+
+
+                else:
+                    loss_retain_perturbed = cross_entropy_loss_fn(
+                        outputs_retain_perturbed.logits,
+                        retain_batch["input_ids"],
+                        tokenizer.pad_token_id,
+                        loss_mask=retain_batch.get("loss_mask")
+                    )
                 
                 # Step 6: Recalculate total loss with perturbed parameters and apply balance_alpha
                 if use_repnoise:
@@ -400,9 +434,9 @@ def unlearn_maxent(
                         beta=repnoise_beta,
                         alpha=repnoise_alpha
                     )
-                    total_loss_perturbed = (uniform_ce_forget_perturbed + balance_alpha * ce_loss_retain_perturbed + repnoise_loss_perturbed) / gradient_accumulation_steps
+                    total_loss_perturbed = ((1 - alpha) * (uniform_ce_forget_perturbed + repnoise_loss_perturbed) + (alpha * loss_retain_perturbed)) / gradient_accumulation_steps
                 else:
-                    total_loss_perturbed = (uniform_ce_forget_perturbed + balance_alpha * ce_loss_retain_perturbed) / gradient_accumulation_steps
+                    total_loss_perturbed = ((1 - alpha) * uniform_ce_forget_perturbed + alpha * loss_retain_perturbed) / gradient_accumulation_steps
                 
                 # Step 7: Compute gradients at perturbed position
                 accelerator.backward(total_loss_perturbed)
@@ -417,9 +451,9 @@ def unlearn_maxent(
                 optimizer.zero_grad()
                 global_step += 1
             else:
-                # Standard backprop for non-SAM or non-update steps
+                # Backprop
                 accelerator.backward(total_loss)
-                
+
                 if (step_in_epoch + 1) % gradient_accumulation_steps == 0:
                     accelerator.clip_grad_norm_(model.parameters(), gradient_clipping_threshold)
                     optimizer.step()
@@ -427,8 +461,8 @@ def unlearn_maxent(
                     optimizer.zero_grad()
                     global_step += 1
 
-            # Logging every few steps (after parameter updates)
-            if global_step > 0 and (global_step == 1 or global_step % 5 == 0):
+                # Logging every few steps
+            if global_step == 1 or global_step % 5 == 0 and (step_in_epoch + 1) % gradient_accumulation_steps == 0:
                 msg = (
                     f"[maxent.py] Epoch {epoch+1}/{epochs}, Step {global_step}/{total_steps}, "
                     f"Uniform-Forget => CE_forget(uniform): {uniform_ce_forget:.6f}"
@@ -443,21 +477,19 @@ def unlearn_maxent(
                 }
 
                 if use_retain and retain_loader_iter is not None:
-                    train_log_dict["train/ce_loss_retain"] = ce_loss_retain.item()
-                    train_log_dict["train/balance_alpha"] = balance_alpha
-                    train_log_dict["train/weighted_ce_loss_retain"] = (balance_alpha * ce_loss_retain).item()
-                    print_acc(f"[maxent.py] Retain CE: {ce_loss_retain:.6f} (weighted: {balance_alpha * ce_loss_retain:.6f})", print_message)
+                    train_log_dict["train/loss_retain"] = loss_retain.item()
+                    print_acc(f"[maxent.py] Retain CE: {loss_retain:.6f}", print_message)
+                
+                # Log RepNoise loss if enabled
+                if use_repnoise:
+                    train_log_dict["train/repnoise_loss"] = repnoise_loss.item()
+                    print_acc(f"[maxent.py] RepNoise Loss: {repnoise_loss:.6f}", print_message)
                     
-                    # Log RepNoise loss if enabled
-                    if use_repnoise:
-                        train_log_dict["train/repnoise_loss"] = repnoise_loss.item()
-                        print_acc(f"[maxent.py] RepNoise Loss: {repnoise_loss:.6f}", print_message)
-                        
-                    # Log SAM info if enabled
-                    if use_sam:
-                        train_log_dict["train/sam_enabled"] = True
-                        train_log_dict["train/sam_rho"] = sam_rho
-                        print_acc(f"[maxent.py] SAM enabled with rho={sam_rho}", print_message)
+                # Log SAM info if enabled
+                if use_sam:
+                    train_log_dict["train/sam_enabled"] = True
+                    train_log_dict["train/sam_rho"] = sam_rho
+                    print_acc(f"[maxent.py] SAM enabled with rho={sam_rho}", print_message)
 
                 if use_wandb and accelerator.is_main_process:
                     wandb.log(train_log_dict)
@@ -467,7 +499,7 @@ def unlearn_maxent(
 
                 # Validation
                 # (Perform if first step, or modulo validation_steps or last step)
-                if global_step == 1 or global_step % validation_steps == 0 or (max_steps > 0 and global_step >= max_steps):
+                if global_step % validation_steps == 0:
                     print_acc("[maxent.py] Running validation ...", print_message)
                     val_log_dict = eval_fn(model, print_results=True)
                     val_log_dict["train/step"] = global_step
@@ -507,6 +539,8 @@ def unlearn_maxent(
         unwrapped_model.save_pretrained(save_path)
         tokenizer.save_pretrained(save_path)
         print_acc(f"[maxent.py] Model saved to => {save_path}", print_message)
+        if use_wandb:
+            wandb.finish()
 
 # ----------------------------------------------------------------
 # Helper functions

@@ -4,8 +4,8 @@ Configured for a (any)xA100 GPU server.
 Launch Command: python run_relearn_arithmetic.py
 """
 
-from code.tools.relearn_langarith import relearn
-from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
+from src.tools.relearn_langarith import relearn
+from src.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
 from accelerate import Accelerator
 from utils.loss_functions import print_acc
 from utils.validation_functions import get_arithmetic_eval_fn

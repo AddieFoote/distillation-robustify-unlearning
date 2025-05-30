@@ -1,6 +1,6 @@
 # Distillation Robustifies Unlearning
 
-Code used for Distillation Robustifies Unlearning. `/code` directory and `run-*.py` host all runnable scripts.
+Code used for Distillation Robustifies Unlearning. `/src` directory and `run-*.py` host all runnable scripts.
 
 ## Abstract
 
@@ -27,10 +27,10 @@ Given that distillation is already widely used, adding an unlearning step before
 ## Initial dataset + model processing
 
 1. add a huggingface token to `tokens/hf_token.txt` and a wandb token to `tokens/wandb_token.txt`
-2. `python code/prepare_models/reduce_gemma.py`
-3. `python code/prepare_data/download_datasets.py`
-4. `python code/prepare_data/download_arithmetic.py`
-5. `python code/prepare_data/prepare.py`
+2. `python src/prepare_models/reduce_gemma.py`
+3. `python src/prepare_data/download_datasets.py`
+4. `python src/prepare_data/download_arithmetic.py`
+5. `python src/prepare_data/prepare.py`
 
 ## Running Scripts
 

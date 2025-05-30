@@ -1,5 +1,5 @@
-from code.tools.distill import distill
-from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
+from src.tools.distill import distill
+from src.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR, WANDB_API_KEY_PATH
 from accelerate import Accelerator
 from datasets import load_dataset
 from utils.loss_functions import print_acc

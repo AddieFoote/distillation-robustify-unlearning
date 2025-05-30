@@ -1,5 +1,5 @@
-from code.tools.pretrain import train
-from code.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR
+from src.tools.pretrain import train
+from src.utils.paths import CACHE_DIR, DATASET_DIR, MODEL_DIR
 from accelerate import Accelerator
 from datasets import load_dataset
 from utils.loss_functions import print_acc
