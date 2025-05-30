@@ -42,7 +42,7 @@ Run all steps above, but before running step 3, open the file `src/prepare_data/
 Run all steps above, but before running step 3, open the file `src/prepare_data/download_datasets.py` and comment out all calls to `download_dataset` except those that are indicated as required for arithmetic setting in the comments (the second to last). This will substantially speed up steps 3 and 6. Skip step 5.
 
 ### Set up only WMDP
-Run all steps above, but before running step 3, open the file `src/prepare_data/download_datasets.py` and comment out all calls to `download_dataset` except those that are indicated as required for WMDP setting in the comments (only the last is not required). This will speed up steps 3 and 6. Skip steps 5.
+Run all steps above, but before running step 3, open the file `src/prepare_data/download_datasets.py` and comment out all calls to `download_dataset` except those that are indicated as required for WMDP setting in the comments (only the last is not required). This will speed up steps 3 and 6. Skip steps 4.
 
 ## Running Scripts
 
