@@ -15,7 +15,7 @@ Given that distillation is already widely used, adding an unlearning step before
 ## General Notes
 
 - All scripts are meant to be run from distillation-robustifies-unlearning directory.
-- Most run_* scripts will automatically run on all available GPUs, running several processes in parallel or sequentially as available until all specified settings have been run. To restrict the GPU's, preceed the command with `CUDA_VISIBLE_DEVICES={desired devices}`.
+- Most run_* scripts will automatically run on all available GPUs, running several processes in parallel or sequentially as available until all specified settings have been run. To restrict the GPU's, precede the command with `CUDA_VISIBLE_DEVICES={desired devices}`.
 ## Seting Up Environment
 
 1. `git clone https://github.com/AddieFoote/distillation-robustify-unlearning`
