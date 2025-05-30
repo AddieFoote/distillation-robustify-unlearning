@@ -26,11 +26,23 @@ Given that distillation is already widely used, adding an unlearning step before
 
 ## Initial dataset + model processing
 
+### Set up for all settings
 1. add a huggingface token to `tokens/hf_token.txt` and a wandb token to `tokens/wandb_token.txt`
 2. `python src/prepare_models/reduce_gemma.py`
 3. `python src/prepare_data/download_datasets.py`
 4. `python src/prepare_data/download_arithmetic.py`
-5. `python src/prepare_data/prepare.py`
+5.  Contact us for the WMDP question-answer datasets that were generated via `wmdp_question_extraction.py`. 
+6. `python src/prepare_data/prepare.py`
+
+
+### Set up only language
+Run all steps above, but before running step 3, open the file `src/prepare_data/download_datasets.py` and comment out all calls to `download_dataset` except those that are indicated as required for language setting in the comments (the final two). This will substantially speed up steps 3 and 6. Skip steps 4 and 5.
+
+### Set up only arithmeticc
+Run all steps above, but before running step 3, open the file `src/prepare_data/download_datasets.py` and comment out all calls to `download_dataset` except those that are indicated as required for arithmetic setting in the comments (the second to last). This will substantially speed up steps 3 and 6. Skip step 5.
+
+### Set up only WMDP
+Run all steps above, but before running step 3, open the file `src/prepare_data/download_datasets.py` and comment out all calls to `download_dataset` except those that are indicated as required for WMDP setting in the comments (only the last is not required). This will speed up steps 3 and 6. Skip steps 5.
 
 ## Running Scripts
 

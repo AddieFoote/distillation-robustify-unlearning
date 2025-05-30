@@ -40,6 +40,7 @@ def download_dataset(dataset_id, subset_name, output_filename, split="train", ca
             print(f"Processed {count} lines in total.")
     print("Finished streaming dataset to:", output_path)
 
+# ====== REQUIRED FOR WMDP SETTING ======
 download_dataset(
     dataset_id="Magpie-Align/Magpie-Llama-3.3-Pro-1M-v0.1",
     output_filename="magpie.jsonl",
@@ -107,6 +108,7 @@ download_dataset(
     max_rows=10_000_000
 )
 
+# ====== REQUIRED FOR LANGUAGE SETTING ======
 download_dataset(
     dataset_id="HuggingFaceFW/fineweb-2",
     subset_name="kor_Hang",
@@ -114,6 +116,7 @@ download_dataset(
     max_rows=10_000_000
 )
 
+# ====== REQUIRED FOR LANGUAGE, ARITHMETIC, AND WMDP SETTING ======
 download_dataset(
     dataset_id="HuggingFaceFW/fineweb-edu",
     subset_name="sample-10BT",
