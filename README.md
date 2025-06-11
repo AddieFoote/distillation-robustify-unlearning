@@ -65,5 +65,13 @@ python run_...py
 ## Citation
 
 ```bibtex
-@article{}
+@misc{lee2025distillationrobustifiesunlearning,
+      title={Distillation Robustifies Unlearning}, 
+      author={Bruce W. Lee and Addie Foote and Alex Infanger and Leni Shor and Harish Kamath and Jacob Goldman-Wetzler and Bryce Woodworth and Alex Cloud and Alexander Matt Turner},
+      year={2025},
+      eprint={2506.06278},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2506.06278}, 
+}
 ```
