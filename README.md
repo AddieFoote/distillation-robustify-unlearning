@@ -1,6 +1,6 @@
 # 🔬 Distillation Robustifies Unlearning
 <p align="center">
-    📄 <a href="https://arxiv.org/pdf/2506.06278">arXiv:2506.06278</a>
+    | 📄 <a href="https://arxiv.org/pdf/2506.06278">arXiv</a> | 🎮 <a href="https://addiefoote.com/distillation-robustifies-demo/">Demo</a> |
 </p>
 
 Code used for Distillation Robustifies Unlearning. `/src` directory and `run-*.py` host all runnable scripts.
